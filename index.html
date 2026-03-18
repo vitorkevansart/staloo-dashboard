@@ -422,7 +422,8 @@ tr.atrasado:hover td{background:rgba(255,77,106,.08);}
               <select class="fs" id="limpeza-status">
                 <option value="arquivado">Arquivadas</option>
                 <option value="retirado">Retiradas</option>
-                <option value="todos">Ambos</option>
+                <option value="aguardando">Pendentes</option>
+                <option value="todos">Todos</option>
               </select>
             </div>
           </div>
@@ -861,11 +862,11 @@ function getLimpezaFiltro(){
   const status=document.getElementById('limpeza-status').value;
   const corte=new Date();corte.setDate(corte.getDate()-dias);
   return encs.filter(e=>{
-    const st=status==='todos'?['arquivado','retirado'].includes(e.status):e.status===status;
-    const dt=e.arquivadoEm||e.retiradoEm;
-    const old=dt&&new Date(dt)<corte;
+    const stOk=status==='todos'?true:e.status===status;
+    const dtRef=e.arquivadoEm||e.retiradoEm||e.criadoEm;
+    const old=dtRef&&new Date(dtRef)<corte;
     const loc=!local||e.local===local;
-    return st&&old&&loc;
+    return stOk&&old&&loc;
   });
 }
 
