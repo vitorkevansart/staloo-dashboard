@@ -216,8 +216,10 @@ tr.atrasado:hover td{background:rgba(255,77,106,.08);}
     <div class="nav-item" onclick="showSec('moradores',this)"><span class="nav-icon">◎</span>Moradores</div>
     <div class="nav-sec">Relatórios</div>
     <div class="nav-item" onclick="showSec('relatorio',this)"><span class="nav-icon">◫</span>Relatório</div>
+    <div class="nav-item" onclick="showSec('livros',this)"><span class="nav-icon">📖</span>Livros</div>
     <div class="nav-sec">Sistema</div>
     <div class="nav-item" onclick="showSec('logs',this)"><span class="nav-icon">≡</span>Logs</div>
+    <div class="nav-item" id="nav-limpeza" onclick="showSec('limpeza',this)"><span class="nav-icon">🗑</span>Limpeza</div>
     <div class="nav-item" id="nav-cfg" onclick="showSec('configuracoes',this)"><span class="nav-icon">⊙</span>Configurações</div>
   </nav>
   <div class="sidebar-footer">
@@ -350,6 +352,94 @@ tr.atrasado:hover td{background:rgba(255,77,106,.08);}
       <div class="panel">
         <div class="panel-hd"><div class="panel-title">📊 Encomendas por Dia</div></div>
         <div class="chart-wrap" style="height:250px"><canvas id="chart-rel"></canvas></div>
+      </div>
+    </div>
+
+    <!-- LIVROS -->
+    <div id="s-livros" style="display:none">
+      <div class="panel" style="margin-bottom:14px">
+        <div class="panel-hd">
+          <div class="panel-title">📖 Livro Atual</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost btn-sm" onclick="abrirM('novo-livro')">+ Novo Livro</button>
+            <button class="btn btn-danger btn-sm" id="btn-encerrar-livro" onclick="encerrarLivro()">Encerrar Livro</button>
+          </div>
+        </div>
+        <div style="padding:18px">
+          <div id="livro-atual-info"></div>
+          <div style="margin-top:16px">
+            <div style="font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px">Uso do livro</div>
+            <div style="background:var(--surface2);border-radius:8px;height:12px;overflow:hidden">
+              <div id="livro-barra" style="height:100%;background:linear-gradient(90deg,#2D6FF5,#00D4FF);border-radius:8px;transition:width .5s"></div>
+            </div>
+            <div id="livro-barra-label" style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:6px"></div>
+          </div>
+          <div id="livro-pendentes-wrap" style="margin-top:16px;display:none">
+            <div style="font-family:var(--mono);font-size:9px;color:var(--yellow);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px">⚠ Pendentes neste livro</div>
+            <div id="livro-pendentes-lista"></div>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-hd"><div class="panel-title">Histórico de Livros</div></div>
+        <div class="tw"><table><thead><tr><th>Livro</th><th>Protocolos</th><th>Status</th><th>Pendentes</th><th>Encerrado em</th></tr></thead><tbody id="tb-livros"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- LIMPEZA -->
+    <div id="s-limpeza" style="display:none">
+      <div class="panel" style="margin-bottom:14px">
+        <div class="panel-hd">
+          <div class="panel-title">🗑 Limpeza de Dados</div>
+        </div>
+        <div style="padding:18px">
+          <div style="font-size:12px;color:var(--text2);margin-bottom:16px;line-height:1.6">
+            Remove permanentemente encomendas arquivadas do Firebase. Antes de confirmar, gera um relatório completo do que será deletado.
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
+            <div class="fg">
+              <label class="flabel">Arquivadas há mais de</label>
+              <select class="fs" id="limpeza-periodo">
+                <option value="30">30 dias</option>
+                <option value="60">60 dias</option>
+                <option value="90" selected>90 dias</option>
+                <option value="180">6 meses</option>
+                <option value="365">1 ano</option>
+              </select>
+            </div>
+            <div class="fg">
+              <label class="flabel">Local</label>
+              <select class="fs" id="limpeza-local">
+                <option value="">Todos</option>
+                <option>Armário</option>
+                <option>Gaveta</option>
+                <option>Maleiro</option>
+                <option>Recepção</option>
+              </select>
+            </div>
+            <div class="fg">
+              <label class="flabel">Status</label>
+              <select class="fs" id="limpeza-status">
+                <option value="arquivado">Arquivadas</option>
+                <option value="retirado">Retiradas</option>
+                <option value="todos">Ambos</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost" onclick="previewLimpeza()">🔍 Ver Prévia</button>
+            <button class="btn btn-ghost" onclick="exportarLimpezaPDF()">📄 Relatório PDF</button>
+            <button class="btn btn-ghost" onclick="exportarLimpezaExcel()">📊 Relatório Excel</button>
+            <button class="btn btn-danger" onclick="confirmarLimpeza()">🗑 Confirmar Limpeza</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel" id="limpeza-preview-panel" style="display:none">
+        <div class="panel-hd">
+          <div class="panel-title">Prévia — O que será removido</div>
+          <span id="limpeza-preview-count" style="font-family:var(--mono);font-size:10px;color:var(--red)"></span>
+        </div>
+        <div class="tw"><table><thead><tr><th>Proto</th><th>Morador</th><th>UH</th><th>Local</th><th>Status</th><th>Registrado em</th><th>Arquivado em</th></tr></thead><tbody id="tb-limpeza"></tbody></table></div>
       </div>
     </div>
 
@@ -521,6 +611,18 @@ tr.atrasado:hover td{background:rgba(255,77,106,.08);}
   </div>
 </div>
 
+<div class="mo" id="mo-novo-livro">
+  <div class="modal">
+    <div class="modal-title">Novo Livro de Protocolo <button class="mclose" onclick="fecharM('novo-livro')">✕</button></div>
+    <div class="fg"><label class="flabel">Nome do Livro</label><input class="fi" id="livro-nome" placeholder="Ex: 02-2026"></div>
+    <div class="fg"><label class="flabel">Protocolo máximo</label><input class="fi" id="livro-max" type="number" value="2000" placeholder="Ex: 2000"></div>
+    <div class="mactions">
+      <button class="btn btn-ghost" onclick="fecharM('novo-livro')">Cancelar</button>
+      <button class="btn btn-primary" onclick="criarLivro()">Criar Livro</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"><span id="tmsg"></span></div>
 
 <script>
@@ -586,18 +688,20 @@ function toggleEasy(){easyMode=!easyMode;document.body.classList.toggle('easy',e
 
 // ── NAVEGACAO ──
 function showSec(n,el){
-  ['dashboard','encomendas','atrasadas','moradores','relatorio','logs','configuracoes'].forEach(s=>{
+  ['dashboard','encomendas','atrasadas','moradores','livros','relatorio','limpeza','logs','configuracoes'].forEach(s=>{
     const el=document.getElementById('s-'+s);
     if(el)el.style.display=s===n?'block':'none';
   });
   document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
   if(el)el.classList.add('active');
-  const t={dashboard:['Dashboard','Visao geral'],encomendas:['Encomendas','Gerencie todas as encomendas'],atrasadas:['Atrasadas','Aguardando ha mais de 48h'],moradores:['Moradores','Cadastro de moradores'],relatorio:['Relatorio','Resumo de atividades'],logs:['Logs','Historico do sistema'],configuracoes:['Configuracoes','Personalizar o sistema']};
+  const t={dashboard:['Dashboard','Visao geral'],encomendas:['Encomendas','Gerencie todas as encomendas'],atrasadas:['Atrasadas','Aguardando ha mais de 48h'],moradores:['Moradores','Cadastro de moradores'],livros:['Livros','Controle de livros de protocolo'],relatorio:['Relatorio','Resumo de atividades'],limpeza:['Limpeza','Remover dados arquivados'],logs:['Logs','Historico do sistema'],configuracoes:['Configuracoes','Personalizar o sistema']};
   if(t[n]){document.getElementById('ptitle').textContent=t[n][0];document.getElementById('psub').textContent=t[n][1];}
   if(n==='encomendas')renderEnc();
   if(n==='moradores')renderMor();
   if(n==='atrasadas')renderAtrasadas();
   if(n==='relatorio')renderRelatorio();
+  if(n==='livros')renderLivros();
+  if(n==='limpeza')previewLimpeza();
 }
 
 // ── API ──
@@ -666,6 +770,162 @@ function toast(msg){const el=document.getElementById('toast');document.getElemen
 function addAct(title,desc,color){const l=document.getElementById('act-list');const d=document.createElement('div');d.className='act-item';d.innerHTML='<div class="adot" style="background:'+color+'"></div><div><div class="at"><span class="an">'+title+'</span> — '+desc+'</div><div class="atime">agora</div></div>';l.insertBefore(d,l.firstChild);while(l.children.length>20)l.removeChild(l.lastChild);}
 function log(type,msg){const el=document.getElementById('log-c');const t=new Date().toLocaleTimeString('pt-BR');const d=document.createElement('div');d.className='log-entry';const cls={ok:'lok',err:'lerr',info:'linfo',sys:'lsys'}[type]||'linfo';const pfx={ok:'[OK]  ',err:'[ERR] ',info:'[INFO]',sys:'[SYS] '}[type];d.innerHTML='<span class="lt">'+t+'</span><span class="'+cls+'">'+pfx+' '+msg+'</span>';el.appendChild(d);el.scrollTop=el.scrollHeight;}
 function limparLog(){document.getElementById('log-c').innerHTML='';log('sys','Logs limpos.');}
+// ── LIVROS ──
+function getLivros(){try{return JSON.parse(localStorage.getItem('staloo_livros')||'[]');}catch(e){return[];}}
+function salvarLivros(l){localStorage.setItem('staloo_livros',JSON.stringify(l));}
+function getLivroAtual(){const l=getLivros();return l.find(x=>x.ativo)||null;}
+
+function renderLivros(){
+  const livros=getLivros();
+  const atual=livros.find(x=>x.ativo);
+  const info=document.getElementById('livro-atual-info');
+  if(!atual){
+    info.innerHTML='<div style="color:var(--muted);font-family:var(--mono);font-size:11px">Nenhum livro ativo. Crie um novo livro para começar.</div>';
+    document.getElementById('livro-barra').style.width='0%';
+    document.getElementById('livro-barra-label').textContent='';
+  } else {
+    const protoAtual=encs.filter(e=>e.livro===atual.nome||!e.livro).length;
+    const pct=Math.min(100,Math.round(protoAtual/atual.max*100));
+    const cor=pct>=90?'var(--red)':pct>=70?'var(--yellow)':'#2D6FF5';
+    info.innerHTML='<div style="display:flex;gap:24px;flex-wrap:wrap">'+
+      '<div><div style="font-size:28px;font-weight:700;color:var(--accent)">'+atual.nome+'</div><div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:2px">LIVRO ATIVO</div></div>'+
+      '<div><div style="font-size:28px;font-weight:700;color:var(--text)">'+protoAtual+' / '+atual.max+'</div><div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:2px">PROTOCOLOS USADOS</div></div>'+
+      '<div><div style="font-size:28px;font-weight:700;color:'+cor+'">'+pct+'%</div><div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:2px">USO</div></div>'+
+      '</div>';
+    document.getElementById('livro-barra').style.width=pct+'%';
+    document.getElementById('livro-barra').style.background=pct>=90?'linear-gradient(90deg,var(--red),#ff8090)':pct>=70?'linear-gradient(90deg,var(--yellow),#ffd060)':'linear-gradient(90deg,#2D6FF5,#00D4FF)';
+    document.getElementById('livro-barra-label').textContent=protoAtual+' protocolos usados de '+atual.max+' ('+pct+'%)';
+    // pendentes
+    const pend=encs.filter(e=>e.status==='aguardando'&&(e.livro===atual.nome||!e.livro));
+    if(pend.length){
+      document.getElementById('livro-pendentes-wrap').style.display='block';
+      document.getElementById('livro-pendentes-lista').innerHTML='<table><thead><tr><th>Proto</th><th>Morador</th><th>UH</th><th>Tempo</th><th>Reprotocolo</th></tr></thead><tbody>'+
+        pend.map(e=>{const t=tempoDecorrido(e.criadoEm);const dias=t?Math.floor(t.horas/24):0;const badge=dias>=60?'<span class="atraso-tag">🔴 Urgente</span>':dias>=30?'<span style="font-family:var(--mono);font-size:8px;color:var(--yellow);background:rgba(255,184,0,.1);padding:2px 6px;border-radius:4px;border:1px solid rgba(255,184,0,.2)">⚠ Sugerido</span>':'—';return'<tr><td><span class="proto">#'+e.proto+'</span></td><td><span class="name">'+e.nome+'</span></td><td><span class="uh-tag">'+e.uh+'</span></td><td style="font-family:var(--mono);font-size:10px">'+(t?t.txt:'—')+'</td><td>'+badge+'</td></tr>';}).join('')+
+        '</tbody></table>';
+    } else {
+      document.getElementById('livro-pendentes-wrap').style.display='none';
+    }
+  }
+  // historico
+  const tb=document.getElementById('tb-livros');
+  if(!livros.length){tb.innerHTML=emptyR(5,'Nenhum livro cadastrado');return;}
+  tb.innerHTML=livros.map(l=>{
+    const qtd=encs.filter(e=>e.livro===l.nome).length;
+    const pend=encs.filter(e=>e.livro===l.nome&&e.status==='aguardando').length;
+    return'<tr><td><span class="name">'+l.nome+'</span></td><td style="font-family:var(--mono)">'+qtd+' / '+l.max+'</td><td>'+(l.ativo?'<span class="badge badge-avisado">ativo</span>':'<span class="badge badge-done">encerrado</span>')+'</td><td style="font-family:var(--mono);color:'+(pend>0?'var(--yellow)':'var(--muted)')+'">'+pend+'</td><td style="font-family:var(--mono);font-size:10px;color:var(--muted)">'+(l.encerradoEm?fdt(l.encerradoEm):'—')+'</td></tr>';
+  }).reverse().join('');
+}
+
+function criarLivro(){
+  const nome=document.getElementById('livro-nome').value.trim();
+  const max=parseInt(document.getElementById('livro-max').value)||2000;
+  if(!nome){toast('Informe o nome do livro!');return;}
+  const livros=getLivros();
+  if(livros.find(l=>l.nome===nome)){toast('Livro já existe!');return;}
+  // desativa atual
+  livros.forEach(l=>l.ativo=false);
+  livros.push({nome,max,ativo:true,criadoEm:new Date().toISOString()});
+  salvarLivros(livros);
+  fecharM('novo-livro');
+  renderLivros();
+  toast('Livro '+nome+' criado e ativado!');
+  log('ok','Novo livro: '+nome+' (max '+max+')');
+}
+
+async function encerrarLivro(){
+  const atual=getLivroAtual();
+  if(!atual){toast('Nenhum livro ativo.');return;}
+  const pend=encs.filter(e=>e.status==='aguardando'&&(e.livro===atual.nome||!e.livro));
+  let msg='Encerrar livro '+atual.nome+'?';
+  if(pend.length) msg+='\n\n⚠ Atenção: '+pend.length+' encomenda(s) ainda pendente(s).\nElas serão marcadas para reprotocolo no próximo livro.';
+  if(!confirm(msg))return;
+  const livros=getLivros();
+  const idx=livros.findIndex(l=>l.nome===atual.nome);
+  if(idx>-1){livros[idx].ativo=false;livros[idx].encerradoEm=new Date().toISOString();}
+  salvarLivros(livros);
+  // marca pendentes pra reprotocolo
+  if(pend.length){
+    await Promise.all(pend.map(e=>fetch(API+'/encomendas/'+e.id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({reprotocolar:true,livroOrigem:atual.nome})})));
+    toast('Livro encerrado. '+pend.length+' encomenda(s) marcadas para reprotocolo.');
+  } else {
+    toast('Livro '+atual.nome+' encerrado com sucesso!');
+  }
+  log('ok','Livro '+atual.nome+' encerrado.');
+  renderLivros();
+}
+
+// ── LIMPEZA ──
+function getLimpezaFiltro(){
+  const dias=parseInt(document.getElementById('limpeza-periodo').value)||90;
+  const local=document.getElementById('limpeza-local').value;
+  const status=document.getElementById('limpeza-status').value;
+  const corte=new Date();corte.setDate(corte.getDate()-dias);
+  return encs.filter(e=>{
+    const st=status==='todos'?['arquivado','retirado'].includes(e.status):e.status===status;
+    const dt=e.arquivadoEm||e.retiradoEm;
+    const old=dt&&new Date(dt)<corte;
+    const loc=!local||e.local===local;
+    return st&&old&&loc;
+  });
+}
+
+function previewLimpeza(){
+  const lista=getLimpezaFiltro();
+  const panel=document.getElementById('limpeza-preview-panel');
+  panel.style.display='block';
+  document.getElementById('limpeza-preview-count').textContent=lista.length+' encomenda(s)';
+  const tb=document.getElementById('tb-limpeza');
+  if(!lista.length){tb.innerHTML=emptyR(7,'Nenhuma encomenda encontrada para os filtros selecionados');return;}
+  tb.innerHTML=lista.map(e=>'<tr><td><span class="proto">#'+(e.proto||'—')+'</span></td><td><span class="name">'+e.nome+'</span></td><td><span class="uh-tag">'+e.uh+'</span></td><td>'+(e.local||'—')+'</td><td><span class="badge '+(e.status==='arquivado'?'badge-archived':'badge-done')+'">'+e.status+'</span></td><td style="font-family:var(--mono);font-size:10px;color:var(--muted)">'+fdt(e.criadoEm)+'</td><td style="font-family:var(--mono);font-size:10px;color:var(--muted)">'+fdt(e.arquivadoEm||e.retiradoEm)+'</td></tr>').join('');
+}
+
+function exportarLimpezaPDF(){
+  const lista=getLimpezaFiltro();
+  if(!lista.length){toast('Nenhuma encomenda nos filtros selecionados.');return;}
+  const hotel=document.getElementById('cfg-hotel')?.value||'Quality Suites Vila Olimpia';
+  const gerado=new Date().toLocaleDateString('pt-BR')+' as '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  const html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Staloo - Relatorio de Limpeza</title><style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Segoe UI,Arial,sans-serif;font-size:11px;color:#1a1a2e;padding:36px 40px;}.header{display:flex;justify-content:space-between;margin-bottom:28px;padding-bottom:16px;border-bottom:3px solid #DD3355;}.brand{font-size:26px;font-weight:900;letter-spacing:6px;color:#2D6FF5;}.brand-sub{font-size:8px;color:#9090B8;letter-spacing:3px;margin-top:3px;text-transform:uppercase;}.right{text-align:right;}.hotel{font-size:14px;font-weight:700;}.subtitle{font-size:10px;color:#DD3355;margin-top:3px;font-weight:700;}.aviso{background:#fff5f6;border:1px solid #ffb0be;border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:11px;color:#DD3355;font-weight:600;}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:24px;}.sc{border-radius:8px;padding:14px 10px;text-align:center;border:1px solid #eee;}.sc .n{font-size:28px;font-weight:800;}.sc .l{font-size:8px;color:#9090B8;text-transform:uppercase;letter-spacing:1.5px;margin-top:5px;}.sc.red{border-color:#DD3355;background:#fff0f3;}.sc.red .n{color:#DD3355;}.sc.green{border-color:#00AA78;background:#f0fff8;}.sc.green .n{color:#00AA78;}.sc.gray{border-color:#ccc;background:#f8f8f8;}.sc.gray .n{color:#666;}table{width:100%;border-collapse:collapse;font-size:10px;}th{background:#1a1a2e;color:white;padding:7px 10px;text-align:left;font-size:8px;text-transform:uppercase;letter-spacing:1px;}td{padding:7px 10px;border-bottom:1px solid #f0f0f0;}tr:nth-child(even) td{background:#fafafa;}.footer{margin-top:28px;padding-top:10px;border-top:1px solid #eee;display:flex;justify-content:space-between;font-size:8px;color:#9090B8;}@media print{@page{size:A4 landscape;margin:12mm;}body{padding:0;}}</style></head><body>'+
+    '<div class="header"><div><div class="brand">STALOO</div><div class="brand-sub">Sistema de Encomendas</div></div><div class="right"><div class="hotel">'+hotel+'</div><div class="subtitle">⚠ RELATORIO DE LIMPEZA</div></div></div>'+
+    '<div class="aviso">Este relatório documenta '+lista.length+' encomenda(s) que serão removidas permanentemente do sistema.</div>'+
+    '<div class="stats"><div class="sc red"><div class="n">'+lista.length+'</div><div class="l">Total a remover</div></div><div class="sc green"><div class="n">'+lista.filter(e=>e.status==='retirado').length+'</div><div class="l">Retiradas</div></div><div class="sc gray"><div class="n">'+lista.filter(e=>e.status==='arquivado').length+'</div><div class="l">Arquivadas</div></div></div>'+
+    '<table><thead><tr><th>Proto</th><th>Morador</th><th>UH</th><th>Local</th><th>Descricao</th><th>Status</th><th>Registrado em</th><th>Arquivado em</th><th>Retirado por</th></tr></thead><tbody>'+
+    lista.map(e=>'<tr><td><strong>#'+(e.proto||'—')+'</strong></td><td>'+e.nome+'</td><td>'+e.uh+'</td><td>'+(e.local||'—')+'</td><td>'+(e.desc||'—')+'</td><td>'+e.status+'</td><td>'+fdt(e.criadoEm)+'</td><td>'+fdt(e.arquivadoEm||e.retiradoEm)+'</td><td>'+(e.retiradoPor||'—')+'</td></tr>').join('')+
+    '</tbody></table><div class="footer"><span>2026 Staloo - Vitor K. Evangelista - vitork.dev</span><span>Gerado em '+gerado+'</span></div></body></html>';
+  const win=window.open('','_blank');win.document.write(html);win.document.close();
+  setTimeout(()=>win.print(),400);
+  toast('📄 Relatório de limpeza gerado!');
+}
+
+function exportarLimpezaExcel(){
+  const lista=getLimpezaFiltro();
+  if(!lista.length){toast('Nenhuma encomenda nos filtros selecionados.');return;}
+  const C=t=>'<Cell><Data ss:Type="String">'+String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</Data></Cell>';
+  const H=t=>'<Cell ss:StyleID="h"><Data ss:Type="String">'+t+'</Data></Cell>';
+  const xml='<?xml version="1.0" encoding="UTF-8"?><?mso-application progid="Excel.Sheet"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Styles><Style ss:ID="h"><Font ss:Bold="1" ss:Color="#FFFFFF" ss:Size="10"/><Interior ss:Color="#1a1a2e" ss:Pattern="Solid"/></Style><Style ss:ID="t"><Font ss:Bold="1" ss:Color="#DD3355" ss:Size="14"/></Style></Styles>'+
+    '<Worksheet ss:Name="Limpeza"><Table ss:DefaultColumnWidth="120">'+
+    '<Row><Cell ss:StyleID="t"><Data ss:Type="String">STALOO - Relatorio de Limpeza - '+lista.length+' encomendas</Data></Cell></Row>'+
+    '<Row></Row>'+
+    '<Row>'+H('Protocolo')+H('Morador')+H('UH')+H('Local')+H('Descricao')+H('Status')+H('Registrado em')+H('Arquivado em')+H('Retirado por')+'</Row>'+
+    lista.map(e=>'<Row>'+C('#'+(e.proto||''))+C(e.nome)+C(e.uh)+C(e.local)+C(e.desc)+C(e.status)+C(fdt(e.criadoEm))+C(fdt(e.arquivadoEm||e.retiradoEm))+C(e.retiradoPor)+'</Row>').join('')+
+    '</Table></Worksheet></Workbook>';
+  const blob=new Blob([xml],{type:'application/vnd.ms-excel;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='staloo_limpeza_'+new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')+'.xls';a.click();
+  toast('📊 Excel de limpeza exportado!');
+}
+
+async function confirmarLimpeza(){
+  const lista=getLimpezaFiltro();
+  if(!lista.length){toast('Nenhuma encomenda para remover.');return;}
+  if(!confirm('Remover PERMANENTEMENTE '+lista.length+' encomenda(s)?\n\nEssa ação não pode ser desfeita.\nRecomendamos exportar o relatório antes de confirmar.'))return;
+  try{
+    await Promise.all(lista.map(e=>fetch(API+'/encomendas/'+e.id,{method:'DELETE'})));
+    lista.forEach(e=>{const idx=encs.findIndex(x=>x.id===e.id);if(idx>-1)encs.splice(idx,1);});
+    updateStats();renderRec();previewLimpeza();
+    toast(lista.length+' encomenda(s) removidas!');
+    log('ok','Limpeza: '+lista.length+' encomendas removidas permanentemente.');
+  }catch(e){toast('Erro ao limpar.');}
+}
 function buscaMorador(){const uh=document.getElementById('euh').value;const m=mors.find(m=>m.uh===uh);document.getElementById('enome').value=m?m.nome:'';}
 
 // ── STATS ──
@@ -1015,7 +1275,9 @@ function renderRelatorio(){
     '<div class="rel-card"><div class="rel-num" style="color:var(--red)">'+atr.length+'</div><div class="rel-lbl">Atrasadas</div></div>'+
     '<div class="rel-card"><div class="rel-num" style="color:var(--accent)">'+mors.length+'</div><div class="rel-lbl">Moradores</div></div>';
   const stats={};
-  ep.forEach(e=>{const r=e.registradoPor||'Desconhecido';if(!stats[r])stats[r]={reg:0,ent:0};stats[r].reg++;if(e.status==='retirado'){const ent=e.retiradoPor||'Desconhecido';if(!stats[ent])stats[ent]={reg:0,ent:0};stats[ent].ent++;}});
+  const nomesOficiais=new Set(USUARIOS.map(u=>u.nome.toLowerCase()));
+  const isOficial=n=>nomesOficiais.has(n.toLowerCase());
+  ep.forEach(e=>{const r=e.registradoPor;if(r&&isOficial(r)){if(!stats[r])stats[r]={reg:0,ent:0};stats[r].reg++;}if(e.status==='retirado'){const ent=e.retiradoPor;if(ent&&isOficial(ent)){if(!stats[ent])stats[ent]={reg:0,ent:0};stats[ent].ent++;}}});
   const nomes=Object.keys(stats);
   document.getElementById('rel-recepcionistas').innerHTML=nomes.length?'<div style="font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin:16px 0 8px">Por Colaborador</div><table><thead><tr><th>Colaborador</th><th>Registros</th><th>Entregas</th></tr></thead><tbody>'+nomes.map(n=>'<tr><td><span class="name">'+n+'</span></td><td style="font-family:var(--mono);color:var(--accent)">'+stats[n].reg+'</td><td style="font-family:var(--mono);color:var(--green)">'+stats[n].ent+'</td></tr>').join('')+'</tbody></table>':'';
   document.getElementById('rel-pendentes').innerHTML=pend.length?'<div style="font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin:16px 0 8px">Pendentes neste periodo</div><table><thead><tr><th>Proto</th><th>Morador</th><th>UH</th><th>Local</th><th>Registrado em</th><th>Tempo</th><th>Avisado</th></tr></thead><tbody>'+pend.map(e=>{const t=tempoDecorrido(e.criadoEm);return'<tr class="'+(isAtrasado(e)?'atrasado':'')+'"><td><span class="proto">#'+(e.proto||'—')+'</span></td><td><span class="name">'+e.nome+'</span></td><td><span class="uh-tag">'+e.uh+'</span></td><td>'+(e.local||'—')+'</td><td style="font-family:var(--mono);font-size:10px;color:var(--muted)">'+fdt(e.criadoEm)+'</td><td>'+(t?'<span class="'+(isAtrasado(e)?'atraso-tag':'')+'">'+t.txt+'</span>':'—')+'</td><td>'+(e.avisado?'<span class="badge badge-avisado">sim</span>':'—')+'</td></tr>';}).join('')+'</tbody></table>':'';
@@ -1037,7 +1299,8 @@ function exportarRelPDF(){
   const atr=ep.filter(e=>isAtrasado(e));
   const tmedio=ret.length?Math.round(ret.reduce((a,e)=>{if(!e.retiradoEm||!e.criadoEm)return a;return a+(new Date(e.retiradoEm)-new Date(e.criadoEm))/3600000;},0)/ret.length):0;
   const stats={};
-  ep.forEach(e=>{const r=e.registradoPor||'Desconhecido';if(!stats[r])stats[r]={reg:0,ent:0};stats[r].reg++;if(e.status==='retirado'){const ent=e.retiradoPor||'Desconhecido';if(!stats[ent])stats[ent]={reg:0,ent:0};stats[ent].ent++;}});
+  const _nOf=new Set(USUARIOS.map(u=>u.nome.toLowerCase()));
+  ep.forEach(e=>{const r=e.registradoPor;if(r&&_nOf.has(r.toLowerCase())){if(!stats[r])stats[r]={reg:0,ent:0};stats[r].reg++;}if(e.status==='retirado'){const ent=e.retiradoPor;if(ent&&_nOf.has(ent.toLowerCase())){if(!stats[ent])stats[ent]={reg:0,ent:0};stats[ent].ent++;}}});
   const geradoEm=new Date().toLocaleDateString('pt-BR')+' as '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
   const html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Staloo - Relatorio</title><style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Segoe UI,Arial,sans-serif;font-size:11px;color:#1a1a2e;padding:36px 40px;}.header{display:flex;justify-content:space-between;margin-bottom:28px;padding-bottom:16px;border-bottom:3px solid #2D6FF5;}.brand{font-size:26px;font-weight:900;letter-spacing:6px;color:#2D6FF5;}.brand-sub{font-size:8px;color:#9090B8;letter-spacing:3px;margin-top:3px;text-transform:uppercase;}.right{text-align:right;}.hotel{font-size:14px;font-weight:700;}.subtitle{font-size:10px;color:#9090B8;margin-top:3px;}.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:24px;}.sc{border-radius:8px;padding:14px 10px;text-align:center;border:1px solid #eee;}.sc .n{font-size:28px;font-weight:800;line-height:1;}.sc .l{font-size:8px;color:#9090B8;text-transform:uppercase;letter-spacing:1.5px;margin-top:5px;}.sc.blue{border-color:#2D6FF5;background:#f0f5ff;}.sc.blue .n{color:#2D6FF5;}.sc.green{border-color:#00AA78;background:#f0fff8;}.sc.green .n{color:#00AA78;}.sc.yellow{border-color:#CC9000;background:#fffbf0;}.sc.yellow .n{color:#CC9000;}.sc.red{border-color:#DD3355;background:#fff0f3;}.sc.red .n{color:#DD3355;}.sc.cyan{border-color:#0099BB;background:#f0fbff;}.sc.cyan .n{color:#0099BB;}.sec{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#9090B8;margin:22px 0 9px;padding-bottom:5px;border-bottom:1px solid #eee;}table{width:100%;border-collapse:collapse;margin-bottom:18px;font-size:10px;}th{background:#1a1a2e;color:white;padding:7px 10px;text-align:left;font-size:8px;text-transform:uppercase;letter-spacing:1px;}td{padding:7px 10px;border-bottom:1px solid #f0f0f0;}tr:nth-child(even) td{background:#fafafa;}tr.atr td{background:#fff5f6;}.br{background:#e8fff5;color:#00AA78;border:1px solid #b0eed3;padding:2px 6px;border-radius:3px;font-size:8px;font-weight:600;}.ba{background:#fffbe8;color:#CC9000;border:1px solid #ffe0a0;padding:2px 6px;border-radius:3px;font-size:8px;font-weight:600;}.bx{background:#fff0f3;color:#DD3355;border:1px solid #ffb0be;padding:2px 6px;border-radius:3px;font-size:8px;font-weight:600;}.footer{margin-top:28px;padding-top:10px;border-top:1px solid #eee;display:flex;justify-content:space-between;font-size:8px;color:#9090B8;}@media print{@page{size:A4 landscape;margin:12mm;}body{padding:0;}}</style></head><body>'+
     '<div class="header"><div><div class="brand">STALOO</div><div class="brand-sub">Sistema de Encomendas</div></div><div class="right"><div class="hotel">'+hotel+'</div><div class="subtitle">Relatorio - '+relPeriodoLabel+'</div></div></div>'+
@@ -1060,7 +1323,8 @@ function exportarRelExcel(){
   const ep=relEncsFiltrados;
   const pend=ep.filter(e=>e.status==='aguardando');
   const stats={};
-  ep.forEach(e=>{const r=e.registradoPor||'Desconhecido';if(!stats[r])stats[r]={reg:0,ent:0};stats[r].reg++;if(e.status==='retirado'){const ent=e.retiradoPor||'Desconhecido';if(!stats[ent])stats[ent]={reg:0,ent:0};stats[ent].ent++;}});
+  const _nOfX=new Set(USUARIOS.map(u=>u.nome.toLowerCase()));
+  ep.forEach(e=>{const r=e.registradoPor;if(r&&_nOfX.has(r.toLowerCase())){if(!stats[r])stats[r]={reg:0,ent:0};stats[r].reg++;}if(e.status==='retirado'){const ent=e.retiradoPor;if(ent&&_nOfX.has(ent.toLowerCase())){if(!stats[ent])stats[ent]={reg:0,ent:0};stats[ent].ent++;}}});
   const C=t=>'<Cell><Data ss:Type="String">'+String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</Data></Cell>';
   const N=n=>'<Cell><Data ss:Type="Number">'+n+'</Data></Cell>';
   const H=t=>'<Cell ss:StyleID="h"><Data ss:Type="String">'+t+'</Data></Cell>';
