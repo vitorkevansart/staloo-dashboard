@@ -492,7 +492,7 @@ tr.atrasado:hover td{background:rgba(255,77,106,.08);}
     </div>
 
   </div>
-  <div class="copyright"><span>© 2026 STALOO — Vitor K. Evangelista · vitork.dev</span><span>v2.1.0</span></div>
+  <div class="copyright"><span>© 2026 Staloo — Todos os direitos reservados · vitork.dev</span><span>v2.1.0</span></div>
 </main>
 
 <!-- MODAIS -->
@@ -643,7 +643,7 @@ const USUARIOS=[
   {user:'sergio',   senha:'1234',       nome:'Sergio',            role:'Colaborador',   nivel:'operador'},
 ];
 
-let API=localStorage.getItem('staloo_api')||'https://staloo-production.up.railway.app';
+let API=localStorage.getItem('staloo_api')||'https://staloo.onrender.com';
 let encs=[],mors=[],fil='all',dark=true,easyMode=false,somAtivo=true,horasAtraso=48;
 let usuarioAtual=null,detalheId=null,chartEnc=null,chartRel=null;
 let relEncsFiltrados=[],relPeriodoLabel='';
@@ -662,7 +662,17 @@ function fazerLogin(){
   document.getElementById('user-av').textContent=f.nome[0];
   document.getElementById('user-name').textContent=f.nome;
   document.getElementById('user-role').textContent=f.role;
-  if(!f.isAdmin&&f.nivel!=='admin'&&f.nivel!=='gestor')document.getElementById('nav-cfg').style.display='none';
+  if(!f.isAdmin&&f.nivel!=='admin'&&f.nivel!=='gestor'){
+    document.getElementById('nav-cfg').style.display='none';
+    document.getElementById('nav-limpeza').style.display='none';
+  } else if(f.nivel==='gestor'){
+    document.getElementById('nav-cfg').style.display='flex';
+    document.getElementById('nav-limpeza').style.display='flex';
+  } else {
+    // admin — tudo visível
+    document.getElementById('nav-cfg').style.display='flex';
+    document.getElementById('nav-limpeza').style.display='flex';
+  }
   const now=new Date();
   document.getElementById('rel-mes').value=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
   document.getElementById('cfg-api').value=API;
@@ -891,7 +901,7 @@ function exportarLimpezaPDF(){
     '<div class="stats"><div class="sc red"><div class="n">'+lista.length+'</div><div class="l">Total a remover</div></div><div class="sc green"><div class="n">'+lista.filter(e=>e.status==='retirado').length+'</div><div class="l">Retiradas</div></div><div class="sc gray"><div class="n">'+lista.filter(e=>e.status==='arquivado').length+'</div><div class="l">Arquivadas</div></div></div>'+
     '<table><thead><tr><th>Proto</th><th>Morador</th><th>UH</th><th>Local</th><th>Descricao</th><th>Status</th><th>Registrado em</th><th>Arquivado em</th><th>Retirado por</th></tr></thead><tbody>'+
     lista.map(e=>'<tr><td><strong>#'+(e.proto||'—')+'</strong></td><td>'+e.nome+'</td><td>'+e.uh+'</td><td>'+(e.local||'—')+'</td><td>'+(e.desc||'—')+'</td><td>'+e.status+'</td><td>'+fdt(e.criadoEm)+'</td><td>'+fdt(e.arquivadoEm||e.retiradoEm)+'</td><td>'+(e.retiradoPor||'—')+'</td></tr>').join('')+
-    '</tbody></table><div class="footer"><span>2026 Staloo - Vitor K. Evangelista - vitork.dev</span><span>Gerado em '+gerado+'</span></div></body></html>';
+    '</tbody></table><div class="footer"><span>© 2026 Staloo — Todos os direitos reservados · vitork.dev</span><span>Gerado em '+gerado+'</span></div></body></html>';
   const win=window.open('','_blank');win.document.write(html);win.document.close();
   setTimeout(()=>win.print(),400);
   toast('📄 Relatório de limpeza gerado!');
@@ -1309,7 +1319,7 @@ function exportarRelPDF(){
     (Object.keys(stats).length?'<div class="sec">Por Colaborador</div><table><thead><tr><th>Colaborador</th><th>Registros</th><th>Entregas</th></tr></thead><tbody>'+Object.entries(stats).map(([n,v])=>'<tr><td><strong>'+n+'</strong></td><td>'+v.reg+'</td><td>'+v.ent+'</td></tr>').join('')+'</tbody></table>':'')+
     (pend.length?'<div class="sec">Pendentes - Nao retiradas ('+pend.length+')</div><table><thead><tr><th>Proto</th><th>Morador</th><th>UH</th><th>Local</th><th>Registrado em</th><th>Tempo</th><th>Avisado</th></tr></thead><tbody>'+pend.map(e=>{const t=tempoDecorrido(e.criadoEm);return'<tr class="'+(isAtrasado(e)?'atr':'')+'"><td><strong>#'+(e.proto||'—')+'</strong></td><td>'+e.nome+'</td><td>'+e.uh+'</td><td>'+(e.local||'—')+'</td><td>'+fdt(e.criadoEm)+'</td><td>'+(t?'<span class="'+(isAtrasado(e)?'bx':'ba')+'">'+t.txt+'</span>':'—')+'</td><td>'+(e.avisado?'<span class="br">Sim</span>':'<span class="ba">Nao</span>')+'</td></tr>';}).join('')+'</tbody></table>':'')+
     '<div class="sec">Todas as Encomendas</div><table><thead><tr><th>Proto</th><th>Morador</th><th>UH</th><th>Local</th><th>Status</th><th>Registrado por</th><th>Data</th><th>Retirado por</th></tr></thead><tbody>'+ep.map(e=>'<tr><td><strong>#'+(e.proto||'—')+'</strong></td><td>'+e.nome+'</td><td>'+e.uh+'</td><td>'+(e.local||'—')+'</td><td><span class="'+(e.status==='retirado'?'br':'ba')+'">'+(e.status==='retirado'?'Retirado':'Aguardando')+'</span></td><td>'+(e.registradoPor||'—')+'</td><td>'+fdt(e.criadoEm)+'</td><td>'+(e.retiradoPor||'—')+'</td></tr>').join('')+'</tbody></table>'+
-    '<div class="footer"><span>2026 Staloo - Vitor K. Evangelista - vitork.dev</span><span>Gerado em '+geradoEm+'</span></div></body></html>';
+    '<div class="footer"><span>© 2026 Staloo — Todos os direitos reservados · vitork.dev</span><span>Gerado em '+geradoEm+'</span></div></body></html>';
   const win=window.open('','_blank');
   win.document.write(html);
   win.document.close();
@@ -1339,7 +1349,7 @@ function exportarRelExcel(){
     '<Row></Row>'+
     '<Row>'+H('Protocolo')+H('Morador')+H('UH')+H('Local')+H('Descricao')+H('Obs')+H('Status')+H('Registrado por')+H('Data Registro')+H('Avisado')+H('Retirado por')+H('Data Retirada')+'</Row>'+
     ep.map(e=>'<Row>'+C('#'+(e.proto||''))+C(e.nome)+C(e.uh)+C(e.local)+C(e.desc)+C(e.obs)+C(e.status==='retirado'?'Retirado':'Aguardando')+C(e.registradoPor)+C(fdt(e.criadoEm))+C(e.avisado?'Sim':'Nao')+C(e.retiradoPor)+C(fdt(e.retiradoEm))+'</Row>').join('')+
-    '<Row></Row><Row><Cell ss:StyleID="f"><Data ss:Type="String">2026 Staloo - Vitor K. Evangelista - vitork.dev</Data></Cell></Row>'+
+    '<Row></Row><Row><Cell ss:StyleID="f"><Data ss:Type="String">© 2026 Staloo — Todos os direitos reservados · vitork.dev</Data></Cell></Row>'+
     '</Table></Worksheet>'+
     '<Worksheet ss:Name="Por Colaborador"><Table ss:DefaultColumnWidth="110">'+
     '<Row>'+H('Colaborador')+H('Registros')+H('Entregas')+'</Row>'+
@@ -1365,7 +1375,7 @@ function salvarConfig(){
   localStorage.setItem('staloo_api',API);
   toast('Configuracoes salvas!');
 }
-function resetarConfig(){API='https://staloo-production.up.railway.app';horasAtraso=48;document.getElementById('cfg-api').value=API;document.getElementById('cfg-horas').value=horasAtraso;localStorage.removeItem('staloo_api');toast('Resetado!');}
+function resetarConfig(){API='https://staloo.onrender.com';horasAtraso=48;document.getElementById('cfg-api').value=API;document.getElementById('cfg-horas').value=horasAtraso;localStorage.removeItem('staloo_api');toast('Resetado!');}
 function renderCfgUsers(){
   const cores={admin:'var(--accent)',gestor:'var(--cyan)',operador:'var(--muted)'};
   document.getElementById('cfg-users').innerHTML=USUARIOS.map(u=>'<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--surface2);border-radius:7px;margin-bottom:6px"><div><div style="font-size:13px;font-weight:600">'+u.nome+'</div><div style="font-family:var(--mono);font-size:9px;color:var(--muted)">'+u.user+' · '+u.role+'</div></div><span style="font-family:var(--mono);font-size:9px;color:'+(cores[u.nivel]||'var(--muted)')+';">'+u.nivel.toUpperCase()+'</span></div>').join('');
