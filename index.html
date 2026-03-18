@@ -116,6 +116,7 @@ tr.atrasado:hover td{background:rgba(255,77,106,.08);}
 .badge{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:4px;font-family:var(--mono);font-size:8px;letter-spacing:.5px;font-weight:500;}
 .badge-wait{background:rgba(255,184,0,.08);color:var(--yellow);border:1px solid rgba(255,184,0,.2);}
 .badge-done{background:rgba(0,229,160,.08);color:var(--green);border:1px solid rgba(0,229,160,.2);}
+.badge-archived{background:rgba(160,100,255,.1);color:#a064ff;border:1px solid rgba(160,100,255,.25);}
 .badge-avisado{background:rgba(0,212,255,.08);color:var(--cyan);border:1px solid rgba(0,212,255,.2);}
 .bdot{width:4px;height:4px;border-radius:50%;background:currentColor;}
 .badge-wait .bdot{animation:pulse 2s infinite;}
@@ -248,7 +249,7 @@ tr.atrasado:hover td{background:rgba(255,77,106,.08);}
           <div class="stat-label">Total de Encomendas</div><div class="stat-value" id="st-total">—</div><div class="stat-desc">Registradas no sistema</div><div class="stat-hint">↗ VER TODAS</div>
         </div>
         <div class="stat-card c-yellow" onclick="showSec('encomendas',document.querySelectorAll('.nav-item')[1]);setTimeout(()=>setF('aguardando'),100)">
-          <div class="stat-label">Aguardando Retirada</div><div class="stat-value" id="st-wait">—</div><div class="stat-desc">Pendentes na portaria</div><div class="stat-hint">↗ VER PENDENTES</div>
+          <div class="stat-label">Aguardando Retirada</div><div class="stat-value" id="st-wait">—</div><div class="stat-desc">Pendentes na recepção</div><div class="stat-hint">↗ VER PENDENTES</div>
         </div>
         <div class="stat-card c-green" onclick="showSec('encomendas',document.querySelectorAll('.nav-item')[1]);setTimeout(()=>setF('retirado'),100)">
           <div class="stat-label">Retiradas Hoje</div><div class="stat-value" id="st-done">—</div><div class="stat-desc">Concluídas com sucesso</div><div class="stat-hint">↗ VER RETIRADAS</div>
@@ -285,15 +286,16 @@ tr.atrasado:hover td{background:rgba(255,77,106,.08);}
         <button class="fchip" id="fc-w" onclick="setF('aguardando')">AGUARDANDO</button>
         <button class="fchip" id="fc-d" onclick="setF('retirado')">RETIRADAS</button>
         <button class="fchip" id="fc-atr" onclick="setF('atrasado')">⚠ ATRASADAS</button>
+        <button class="fchip" id="fc-arq" onclick="setF('arquivado')">📦 ARQUIVADAS</button>
         <button class="btn btn-primary btn-sm" onclick="abrirM('encomenda')">+ Registrar</button>
       </div>
       <div class="export-bar">
         <button class="btn btn-ghost btn-sm" onclick="exportarCSV()">📊 CSV</button>
-        <button class="btn btn-danger btn-sm" onclick="limparAntigas()">🗑 Limpar Retiradas</button>
+        <button class="btn btn-danger btn-sm" onclick="limparAntigas()">📦 Arquivar Retiradas</button>
       </div>
       <div class="panel">
         <div class="panel-hd"><div class="panel-title">◈ Encomendas</div></div>
-        <div class="tw"><table><thead><tr><th>Proto</th><th>Morador</th><th>UH</th><th>Local</th><th>Desc</th><th>Status</th><th>Tempo</th><th>Registrado em</th><th>Ações</th></tr></thead><tbody id="tb-enc"></tbody></table></div>
+        <div class="tw"><table><thead><tr><th>Proto</th><th>Morador</th><th>UH</th><th>Local</th><th>Desc</th><th>Status</th><th>Tempo</th><th>Registrado em</th><th>Retirado em</th><th>Ações</th></tr></thead><tbody id="tb-enc"></tbody></table></div>
       </div>
     </div>
 
@@ -482,6 +484,10 @@ tr.atrasado:hover td{background:rgba(255,77,106,.08);}
       <div style="font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px">Histórico</div>
       <div id="hist-list"></div>
     </div>
+    <div id="assinatura-wrap" style="display:none;margin-top:12px;background:var(--surface2);border-radius:8px;padding:12px">
+      <div style="font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px">Assinatura na Retirada</div>
+      <img id="assinatura-img" src="" style="max-width:100%;border-radius:6px;background:white;padding:4px">
+    </div>
     <div class="mactions">
       <button class="btn btn-ghost" onclick="fecharM('detalhe')">Fechar</button>
       <button class="btn btn-ghost btn-sm" onclick="editarEncModal()">✏ Editar</button>
@@ -520,11 +526,21 @@ tr.atrasado:hover td{background:rgba(255,77,106,.08);}
 <script>
 // ── USUARIOS ──
 const USUARIOS=[
-  {user:'vitor',senha:'staloo2026',nome:'Vitor Evangelista',role:'Administrador',isAdmin:true},
-  {user:'recepcao',senha:'recepcao123',nome:'Recepcao',role:'Recepcionista',isAdmin:false},
+  {user:'vitor',    senha:'staloo2026', nome:'Vitor Evangelista', role:'Administrador', nivel:'admin'},
+  {user:'marcio',   senha:'3134',       nome:'Marcio',            role:'Gestor',        nivel:'gestor'},
+  {user:'jeanne',   senha:'7752',       nome:'Jeanne',            role:'Gestor',        nivel:'gestor'},
+  {user:'rafaela',  senha:'0796',       nome:'Rafaela',           role:'Colaborador',   nivel:'operador'},
+  {user:'gabriel',  senha:'2511',       nome:'Gabriel',           role:'Colaborador',   nivel:'operador'},
+  {user:'ratfa',    senha:'2836',       nome:'Ratfa',             role:'Colaborador',   nivel:'operador'},
+  {user:'mariana',  senha:'0648',       nome:'Mariana',           role:'Colaborador',   nivel:'operador'},
+  {user:'fernando', senha:'0858',       nome:'Fernando',          role:'Colaborador',   nivel:'operador'},
+  {user:'marcos',   senha:'5799',       nome:'Marcos',            role:'Colaborador',   nivel:'operador'},
+  {user:'gilmar',   senha:'6414',       nome:'Gilmar',            role:'Colaborador',   nivel:'operador'},
+  {user:'erika',    senha:'2531',       nome:'Erika',             role:'Colaborador',   nivel:'operador'},
+  {user:'sergio',   senha:'1234',       nome:'Sergio',            role:'Colaborador',   nivel:'operador'},
 ];
 
-let API=localStorage.getItem('staloo_api')||'http://localhost:3000';
+let API=localStorage.getItem('staloo_api')||'https://staloo-production.up.railway.app';
 let encs=[],mors=[],fil='all',dark=true,easyMode=false,somAtivo=true,horasAtraso=48;
 let usuarioAtual=null,detalheId=null,chartEnc=null,chartRel=null;
 let relEncsFiltrados=[],relPeriodoLabel='';
@@ -543,7 +559,7 @@ function fazerLogin(){
   document.getElementById('user-av').textContent=f.nome[0];
   document.getElementById('user-name').textContent=f.nome;
   document.getElementById('user-role').textContent=f.role;
-  if(!f.isAdmin)document.getElementById('nav-cfg').style.display='none';
+  if(!f.isAdmin&&f.nivel!=='admin'&&f.nivel!=='gestor')document.getElementById('nav-cfg').style.display='none';
   const now=new Date();
   document.getElementById('rel-mes').value=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
   document.getElementById('cfg-api').value=API;
@@ -638,10 +654,11 @@ function isAtrasado(e){if(e.status!=='aguardando')return false;const t=tempoDeco
 function fdt(iso){if(!iso)return'—';const d=new Date(iso);return d.toLocaleDateString('pt-BR')+' '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});}
 function emptyR(c,msg){return'<tr><td colspan="'+c+'"><div class="empty"><div class="empty-ic">○</div><div>'+msg+'</div></div></td></tr>';}
 function bdg(e){
+  if(e.status==='arquivado')return'<span class="badge badge-archived"><span class="bdot"></span>ja retirado</span>';
   if(e.avisado&&e.status==='aguardando')return'<span class="badge badge-avisado"><span class="bdot"></span>avisado</span>';
   return e.status==='retirado'?'<span class="badge badge-done"><span class="bdot"></span>retirado</span>':'<span class="badge badge-wait"><span class="bdot"></span>aguardando</span>';
 }
-function setF(f){fil=f;document.querySelectorAll('.fchip').forEach(b=>b.classList.remove('active'));const m={all:'fc-all',aguardando:'fc-w',retirado:'fc-d',atrasado:'fc-atr'};if(document.getElementById(m[f]))document.getElementById(m[f]).classList.add('active');renderEnc();}
+function setF(f){fil=f;document.querySelectorAll('.fchip').forEach(b=>b.classList.remove('active'));const m={all:'fc-all',aguardando:'fc-w',retirado:'fc-d',atrasado:'fc-atr',arquivado:'fc-arq'};if(document.getElementById(m[f]))document.getElementById(m[f]).classList.add('active');renderEnc();}
 function abrirM(t){document.getElementById('mo-'+t).classList.add('open');}
 function fecharM(t){document.getElementById('mo-'+t).classList.remove('open');}
 document.querySelectorAll('.mo').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');}));
@@ -653,11 +670,12 @@ function buscaMorador(){const uh=document.getElementById('euh').value;const m=mo
 
 // ── STATS ──
 function updateStats(){
-  const w=encs.filter(e=>e.status==='aguardando').length;
+  const ativas=encs.filter(e=>e.status!=='arquivado');
+  const w=ativas.filter(e=>e.status==='aguardando').length;
   const hoje=new Date().toDateString();
-  const d=encs.filter(e=>e.status==='retirado'&&e.retiradoEm&&new Date(e.retiradoEm).toDateString()===hoje).length;
-  const atr=encs.filter(e=>isAtrasado(e)).length;
-  document.getElementById('st-total').textContent=encs.length;
+  const d=ativas.filter(e=>e.status==='retirado'&&e.retiradoEm&&new Date(e.retiradoEm).toDateString()===hoje).length;
+  const atr=ativas.filter(e=>isAtrasado(e)).length;
+  document.getElementById('st-total').textContent=ativas.length;
   document.getElementById('st-wait').textContent=w;
   document.getElementById('st-done').textContent=d;
   document.getElementById('st-atr').textContent=atr;
@@ -686,14 +704,20 @@ function renderEnc(){
   const q=(document.getElementById('se')?.value||'').toLowerCase();
   const l=encs.filter(e=>{
     if(fil==='atrasado')return isAtrasado(e);
-    const ok=fil==='all'||e.status===fil;
+    if(fil==='arquivado')return e.status==='arquivado';
+    if(fil==='all')return e.status!=='arquivado'||(q&&(e.nome?.toLowerCase().includes(q)||e.uh?.includes(q)||String(e.proto).includes(q)));
+    const ok=e.status===fil;
     const s=!q||e.nome?.toLowerCase().includes(q)||e.uh?.includes(q)||String(e.proto).includes(q);
     return ok&&s;
+  }).filter(e=>{
+    if(!q)return true;
+    return e.nome?.toLowerCase().includes(q)||e.uh?.includes(q)||String(e.proto).includes(q);
   });
-  if(!l.length){tb.innerHTML=emptyR(9,'Nenhuma encomenda encontrada');return;}
+  if(!l.length){tb.innerHTML=emptyR(10,'Nenhuma encomenda encontrada');return;}
   tb.innerHTML=l.map(e=>{
     const t=tempoDecorrido(e.criadoEm||e.createdAt);const atr=isAtrasado(e);
-    return '<tr class="'+(atr?'atrasado':'')+'"><td><span class="proto">#'+(e.proto||'—')+'</span></td><td><span class="name">'+e.nome+'</span>'+(e.obs?'<div style="font-size:10px;color:var(--muted);margin-top:2px">'+e.obs+'</div>':'')+'</td><td><span class="uh-tag">'+e.uh+'</span></td><td>'+(e.local||'—')+'</td><td>'+(e.desc||'—')+'</td><td>'+bdg(e)+'</td><td>'+(t?'<span class="'+(atr?'atraso-tag':'')+'">'+t.txt+'</span>':'—')+'</td><td style="font-family:var(--mono);font-size:10px;color:var(--muted)">'+fdt(e.criadoEm)+'</td><td style="display:flex;gap:4px;flex-wrap:wrap"><button class="btn btn-ghost btn-sm" onclick="verDetalhe(\''+e.id+'\')">QR</button><button class="btn btn-ghost btn-sm" onclick="abrirEditEnc(\''+e.id+'\')">✏</button>'+(e.status==='aguardando'?'<button class="btn btn-green btn-sm" onclick="abrirRetirada(\''+e.id+'\',\''+e.nome.replace(/'/g,"\\'")+'\')">✓</button>':'')+(e.status==='aguardando'&&!e.avisado?'<button class="btn btn-yellow btn-sm" onclick="marcarAvisado(\''+e.id+'\')">🔔</button>':'')+'</td></tr>';
+    const arq=e.status==='arquivado';
+    return '<tr class="'+(atr?'atrasado':arq?'':'')+'"><td><span class="proto">#'+(e.proto||'—')+'</span></td><td><span class="name">'+e.nome+'</span>'+(e.obs?'<div style="font-size:10px;color:var(--muted);margin-top:2px">'+e.obs+'</div>':'')+'</td><td><span class="uh-tag">'+e.uh+'</span></td><td>'+(e.local||'—')+'</td><td>'+(e.desc||'—')+'</td><td>'+bdg(e)+'</td><td>'+(t?'<span class="'+(atr?'atraso-tag':'')+'">'+t.txt+'</span>':'—')+'</td><td style="font-family:var(--mono);font-size:10px;color:var(--muted)">'+fdt(e.criadoEm)+'</td><td style="font-family:var(--mono);font-size:10px;color:var(--muted)">'+(e.retiradoEm?fdt(e.retiradoEm):'—')+'</td><td style="display:flex;gap:4px;flex-wrap:wrap"><button class="btn btn-ghost btn-sm" onclick="verDetalhe(\''+e.id+'\')">QR</button>'+(arq?'':('<button class="btn btn-ghost btn-sm" onclick="abrirEditEnc(\''+e.id+'\')">✏</button>'+(e.status==='aguardando'?'<button class="btn btn-green btn-sm" onclick="abrirRetirada(\''+e.id+'\',\''+e.nome.replace(/'/g,"\\'")+'\')">✓</button>':'')+(e.status==='aguardando'&&!e.avisado?'<button class="btn btn-yellow btn-sm" onclick="marcarAvisado(\''+e.id+'\')">🔔</button>':'')))+'</td></tr>';
   }).join('');
 }
 
@@ -759,6 +783,15 @@ function verDetalhe(id){
   document.getElementById('hist-list').innerHTML=hist.length?hist.map(h=>'<div class="hist-line"><div class="hist-dot" style="background:'+h.cor+'"></div><div style="flex:1">'+h.txt+'</div><div class="hist-time">'+fdt(h.ts)+'</div></div>').join(''):'<div style="font-family:var(--mono);font-size:10px;color:var(--muted)">Sem historico</div>';
   document.getElementById('btn-retirada-modal').style.display=e.status==='aguardando'?'inline-flex':'none';
   document.getElementById('btn-avisar-modal').style.display=e.status==='aguardando'&&!e.avisado?'inline-flex':'none';
+  // assinatura
+  const assinWrap=document.getElementById('assinatura-wrap');
+  const assinImg=document.getElementById('assinatura-img');
+  if(e.assinatura&&(e.status==='retirado'||e.status==='arquivado')){
+    assinImg.src=e.assinatura;
+    assinWrap.style.display='block';
+  } else {
+    assinWrap.style.display='none';
+  }
   abrirM('detalhe');
 }
 
@@ -885,14 +918,15 @@ async function delMor(id,nome){
 // ── LIMPAR / EXPORTAR ──
 async function limparAntigas(){
   const ret=encs.filter(e=>e.status==='retirado');
-  if(!ret.length){toast('Nenhuma retirada para limpar.');return;}
-  if(!confirm('Remover '+ret.length+' encomenda(s) retirada(s)?'))return;
+  if(!ret.length){toast('Nenhuma retirada para arquivar.');return;}
+  if(!confirm('Arquivar '+ret.length+' encomenda(s) retirada(s)? Elas ficam salvas e buscaveis, mas saem do dashboard principal.'))return;
   try{
-    await Promise.all(ret.map(e=>fetch(API+'/encomendas/'+e.id,{method:'DELETE'})));
-    encs=encs.filter(e=>e.status!=='retirado');
+    await Promise.all(ret.map(e=>fetch(API+'/encomendas/'+e.id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'arquivado',arquivadoEm:new Date().toISOString()})})));
+    ret.forEach(e=>{const idx=encs.findIndex(x=>x.id===e.id);if(idx>-1){encs[idx].status='arquivado';encs[idx].arquivadoEm=new Date().toISOString();}});
     updateStats();renderRec();renderEnc();atualizarChart();
-    toast(ret.length+' encomenda(s) removida(s)!');
-  }catch(e){toast('Erro ao limpar.');}
+    toast(ret.length+' encomenda(s) arquivada(s)!');
+    log('ok','Arquivadas: '+ret.length+' encomendas retiradas.');
+  }catch(e){toast('Erro ao arquivar.');}
 }
 
 function exportarCSV(){
@@ -983,7 +1017,7 @@ function renderRelatorio(){
   const stats={};
   ep.forEach(e=>{const r=e.registradoPor||'Desconhecido';if(!stats[r])stats[r]={reg:0,ent:0};stats[r].reg++;if(e.status==='retirado'){const ent=e.retiradoPor||'Desconhecido';if(!stats[ent])stats[ent]={reg:0,ent:0};stats[ent].ent++;}});
   const nomes=Object.keys(stats);
-  document.getElementById('rel-recepcionistas').innerHTML=nomes.length?'<div style="font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin:16px 0 8px">Por Recepcionista</div><table><thead><tr><th>Recepcionista</th><th>Registros</th><th>Entregas</th></tr></thead><tbody>'+nomes.map(n=>'<tr><td><span class="name">'+n+'</span></td><td style="font-family:var(--mono);color:var(--accent)">'+stats[n].reg+'</td><td style="font-family:var(--mono);color:var(--green)">'+stats[n].ent+'</td></tr>').join('')+'</tbody></table>':'';
+  document.getElementById('rel-recepcionistas').innerHTML=nomes.length?'<div style="font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin:16px 0 8px">Por Colaborador</div><table><thead><tr><th>Colaborador</th><th>Registros</th><th>Entregas</th></tr></thead><tbody>'+nomes.map(n=>'<tr><td><span class="name">'+n+'</span></td><td style="font-family:var(--mono);color:var(--accent)">'+stats[n].reg+'</td><td style="font-family:var(--mono);color:var(--green)">'+stats[n].ent+'</td></tr>').join('')+'</tbody></table>':'';
   document.getElementById('rel-pendentes').innerHTML=pend.length?'<div style="font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin:16px 0 8px">Pendentes neste periodo</div><table><thead><tr><th>Proto</th><th>Morador</th><th>UH</th><th>Local</th><th>Registrado em</th><th>Tempo</th><th>Avisado</th></tr></thead><tbody>'+pend.map(e=>{const t=tempoDecorrido(e.criadoEm);return'<tr class="'+(isAtrasado(e)?'atrasado':'')+'"><td><span class="proto">#'+(e.proto||'—')+'</span></td><td><span class="name">'+e.nome+'</span></td><td><span class="uh-tag">'+e.uh+'</span></td><td>'+(e.local||'—')+'</td><td style="font-family:var(--mono);font-size:10px;color:var(--muted)">'+fdt(e.criadoEm)+'</td><td>'+(t?'<span class="'+(isAtrasado(e)?'atraso-tag':'')+'">'+t.txt+'</span>':'—')+'</td><td>'+(e.avisado?'<span class="badge badge-avisado">sim</span>':'—')+'</td></tr>';}).join('')+'</tbody></table>':'';
   const dias={};
   ep.forEach(e=>{if(!e.criadoEm)return;const k=new Date(e.criadoEm).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});dias[k]=(dias[k]||0)+1;});
@@ -1008,7 +1042,7 @@ function exportarRelPDF(){
   const html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Staloo - Relatorio</title><style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Segoe UI,Arial,sans-serif;font-size:11px;color:#1a1a2e;padding:36px 40px;}.header{display:flex;justify-content:space-between;margin-bottom:28px;padding-bottom:16px;border-bottom:3px solid #2D6FF5;}.brand{font-size:26px;font-weight:900;letter-spacing:6px;color:#2D6FF5;}.brand-sub{font-size:8px;color:#9090B8;letter-spacing:3px;margin-top:3px;text-transform:uppercase;}.right{text-align:right;}.hotel{font-size:14px;font-weight:700;}.subtitle{font-size:10px;color:#9090B8;margin-top:3px;}.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:24px;}.sc{border-radius:8px;padding:14px 10px;text-align:center;border:1px solid #eee;}.sc .n{font-size:28px;font-weight:800;line-height:1;}.sc .l{font-size:8px;color:#9090B8;text-transform:uppercase;letter-spacing:1.5px;margin-top:5px;}.sc.blue{border-color:#2D6FF5;background:#f0f5ff;}.sc.blue .n{color:#2D6FF5;}.sc.green{border-color:#00AA78;background:#f0fff8;}.sc.green .n{color:#00AA78;}.sc.yellow{border-color:#CC9000;background:#fffbf0;}.sc.yellow .n{color:#CC9000;}.sc.red{border-color:#DD3355;background:#fff0f3;}.sc.red .n{color:#DD3355;}.sc.cyan{border-color:#0099BB;background:#f0fbff;}.sc.cyan .n{color:#0099BB;}.sec{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#9090B8;margin:22px 0 9px;padding-bottom:5px;border-bottom:1px solid #eee;}table{width:100%;border-collapse:collapse;margin-bottom:18px;font-size:10px;}th{background:#1a1a2e;color:white;padding:7px 10px;text-align:left;font-size:8px;text-transform:uppercase;letter-spacing:1px;}td{padding:7px 10px;border-bottom:1px solid #f0f0f0;}tr:nth-child(even) td{background:#fafafa;}tr.atr td{background:#fff5f6;}.br{background:#e8fff5;color:#00AA78;border:1px solid #b0eed3;padding:2px 6px;border-radius:3px;font-size:8px;font-weight:600;}.ba{background:#fffbe8;color:#CC9000;border:1px solid #ffe0a0;padding:2px 6px;border-radius:3px;font-size:8px;font-weight:600;}.bx{background:#fff0f3;color:#DD3355;border:1px solid #ffb0be;padding:2px 6px;border-radius:3px;font-size:8px;font-weight:600;}.footer{margin-top:28px;padding-top:10px;border-top:1px solid #eee;display:flex;justify-content:space-between;font-size:8px;color:#9090B8;}@media print{@page{size:A4 landscape;margin:12mm;}body{padding:0;}}</style></head><body>'+
     '<div class="header"><div><div class="brand">STALOO</div><div class="brand-sub">Sistema de Encomendas</div></div><div class="right"><div class="hotel">'+hotel+'</div><div class="subtitle">Relatorio - '+relPeriodoLabel+'</div></div></div>'+
     '<div class="stats"><div class="sc blue"><div class="n">'+ep.length+'</div><div class="l">Encomendas</div></div><div class="sc green"><div class="n">'+ret.length+'</div><div class="l">Retiradas</div></div><div class="sc yellow"><div class="n">'+pend.length+'</div><div class="l">Pendentes</div></div><div class="sc red"><div class="n">'+atr.length+'</div><div class="l">Atrasadas</div></div><div class="sc cyan"><div class="n">'+tmedio+'h</div><div class="l">Tempo Medio</div></div></div>'+
-    (Object.keys(stats).length?'<div class="sec">Por Recepcionista</div><table><thead><tr><th>Recepcionista</th><th>Registros</th><th>Entregas</th></tr></thead><tbody>'+Object.entries(stats).map(([n,v])=>'<tr><td><strong>'+n+'</strong></td><td>'+v.reg+'</td><td>'+v.ent+'</td></tr>').join('')+'</tbody></table>':'')+
+    (Object.keys(stats).length?'<div class="sec">Por Colaborador</div><table><thead><tr><th>Colaborador</th><th>Registros</th><th>Entregas</th></tr></thead><tbody>'+Object.entries(stats).map(([n,v])=>'<tr><td><strong>'+n+'</strong></td><td>'+v.reg+'</td><td>'+v.ent+'</td></tr>').join('')+'</tbody></table>':'')+
     (pend.length?'<div class="sec">Pendentes - Nao retiradas ('+pend.length+')</div><table><thead><tr><th>Proto</th><th>Morador</th><th>UH</th><th>Local</th><th>Registrado em</th><th>Tempo</th><th>Avisado</th></tr></thead><tbody>'+pend.map(e=>{const t=tempoDecorrido(e.criadoEm);return'<tr class="'+(isAtrasado(e)?'atr':'')+'"><td><strong>#'+(e.proto||'—')+'</strong></td><td>'+e.nome+'</td><td>'+e.uh+'</td><td>'+(e.local||'—')+'</td><td>'+fdt(e.criadoEm)+'</td><td>'+(t?'<span class="'+(isAtrasado(e)?'bx':'ba')+'">'+t.txt+'</span>':'—')+'</td><td>'+(e.avisado?'<span class="br">Sim</span>':'<span class="ba">Nao</span>')+'</td></tr>';}).join('')+'</tbody></table>':'')+
     '<div class="sec">Todas as Encomendas</div><table><thead><tr><th>Proto</th><th>Morador</th><th>UH</th><th>Local</th><th>Status</th><th>Registrado por</th><th>Data</th><th>Retirado por</th></tr></thead><tbody>'+ep.map(e=>'<tr><td><strong>#'+(e.proto||'—')+'</strong></td><td>'+e.nome+'</td><td>'+e.uh+'</td><td>'+(e.local||'—')+'</td><td><span class="'+(e.status==='retirado'?'br':'ba')+'">'+(e.status==='retirado'?'Retirado':'Aguardando')+'</span></td><td>'+(e.registradoPor||'—')+'</td><td>'+fdt(e.criadoEm)+'</td><td>'+(e.retiradoPor||'—')+'</td></tr>').join('')+'</tbody></table>'+
     '<div class="footer"><span>2026 Staloo - Vitor K. Evangelista - vitork.dev</span><span>Gerado em '+geradoEm+'</span></div></body></html>';
@@ -1042,8 +1076,8 @@ function exportarRelExcel(){
     ep.map(e=>'<Row>'+C('#'+(e.proto||''))+C(e.nome)+C(e.uh)+C(e.local)+C(e.desc)+C(e.obs)+C(e.status==='retirado'?'Retirado':'Aguardando')+C(e.registradoPor)+C(fdt(e.criadoEm))+C(e.avisado?'Sim':'Nao')+C(e.retiradoPor)+C(fdt(e.retiradoEm))+'</Row>').join('')+
     '<Row></Row><Row><Cell ss:StyleID="f"><Data ss:Type="String">2026 Staloo - Vitor K. Evangelista - vitork.dev</Data></Cell></Row>'+
     '</Table></Worksheet>'+
-    '<Worksheet ss:Name="Por Recepcionista"><Table ss:DefaultColumnWidth="110">'+
-    '<Row>'+H('Recepcionista')+H('Registros')+H('Entregas')+'</Row>'+
+    '<Worksheet ss:Name="Por Colaborador"><Table ss:DefaultColumnWidth="110">'+
+    '<Row>'+H('Colaborador')+H('Registros')+H('Entregas')+'</Row>'+
     Object.entries(stats).map(([n,v])=>'<Row>'+C(n)+N(v.reg)+N(v.ent)+'</Row>').join('')+
     '</Table></Worksheet>'+
     '<Worksheet ss:Name="Pendentes"><Table ss:DefaultColumnWidth="110">'+
@@ -1066,12 +1100,13 @@ function salvarConfig(){
   localStorage.setItem('staloo_api',API);
   toast('Configuracoes salvas!');
 }
-function resetarConfig(){API='http://localhost:3000';horasAtraso=48;document.getElementById('cfg-api').value=API;document.getElementById('cfg-horas').value=horasAtraso;localStorage.removeItem('staloo_api');toast('Resetado!');}
+function resetarConfig(){API='https://staloo-production.up.railway.app';horasAtraso=48;document.getElementById('cfg-api').value=API;document.getElementById('cfg-horas').value=horasAtraso;localStorage.removeItem('staloo_api');toast('Resetado!');}
 function renderCfgUsers(){
-  document.getElementById('cfg-users').innerHTML=USUARIOS.map(u=>'<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--surface2);border-radius:7px;margin-bottom:6px"><div><div style="font-size:13px;font-weight:600">'+u.nome+'</div><div style="font-family:var(--mono);font-size:9px;color:var(--muted)">'+u.user+' · '+u.role+'</div></div><span style="font-family:var(--mono);font-size:9px;color:'+(u.isAdmin?'var(--accent)':'var(--muted)')+';">'+(u.isAdmin?'ADMIN':'PADRAO')+'</span></div>').join('');
+  const cores={admin:'var(--accent)',gestor:'var(--cyan)',operador:'var(--muted)'};
+  document.getElementById('cfg-users').innerHTML=USUARIOS.map(u=>'<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--surface2);border-radius:7px;margin-bottom:6px"><div><div style="font-size:13px;font-weight:600">'+u.nome+'</div><div style="font-family:var(--mono);font-size:9px;color:var(--muted)">'+u.user+' · '+u.role+'</div></div><span style="font-family:var(--mono);font-size:9px;color:'+(cores[u.nivel]||'var(--muted)')+';">'+u.nivel.toUpperCase()+'</span></div>').join('');
 }
 
-log('sys','Staloo Dashboard v2.1.0 inicializado');
+log('sys','Staloo Dashboard v2.2.0 inicializado');
 </script>
 </body>
 </html>
