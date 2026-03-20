@@ -305,7 +305,7 @@ tr.atrasado:hover td{background:rgba(255,77,106,.08);}
     <div id="s-atrasadas" style="display:none">
       <div class="panel">
         <div class="panel-hd"><div class="panel-title">⚠ Atrasadas (+48h)</div><span id="atr-count" style="font-family:var(--mono);font-size:10px;color:var(--red)"></span></div>
-        <div class="tw"><table><thead><tr><th>Proto</th><th>Morador</th><th>UH</th><th>Local</th><th>Tempo</th><th>Avisado</th><th>Ações</th></tr></thead><tbody id="tb-atr"></tbody></table></div>
+        <div class="tw"><table><thead><tr><th>Proto</th><th>Morador</th><th>UH</th><th>Local</th><th>Tempo</th><th>Avisado</th><th>Reprotocolo</th><th>Ações</th></tr></thead><tbody id="tb-atr"></tbody></table></div>
       </div>
     </div>
 
@@ -608,6 +608,21 @@ tr.atrasado:hover td{background:rgba(255,77,106,.08);}
     <div class="mactions">
       <button class="btn btn-ghost" onclick="fecharM('importar')">Cancelar</button>
       <button class="btn btn-primary" onclick="executarImport()">📥 Importar</button>
+    </div>
+  </div>
+</div>
+
+<div class="mo" id="mo-reprotocolo">
+  <div class="modal">
+    <div class="modal-title">Reprotocolar Encomenda <button class="mclose" onclick="fecharM('reprotocolo')">✕</button></div>
+    <input type="hidden" id="reproto-id">
+    <div id="reproto-info" style="background:var(--surface2);border-radius:8px;padding:14px;margin-bottom:16px;font-size:12px;line-height:1.8"></div>
+    <div style="background:var(--ag);border:1px solid var(--accent);border-radius:8px;padding:12px 14px;font-size:12px;color:var(--text2);margin-bottom:4px">
+      O sistema vai gerar automaticamente o próximo protocolo disponível do livro ativo e arquivar a encomenda original com referência.
+    </div>
+    <div class="mactions">
+      <button class="btn btn-ghost" onclick="fecharM('reprotocolo')">Cancelar</button>
+      <button class="btn btn-yellow" onclick="confirmarReprotocolo()">↻ Reprotocolar</button>
     </div>
   </div>
 </div>
@@ -1058,11 +1073,51 @@ function renderAtrasadas(){
   const tb=document.getElementById('tb-atr');
   const l=encs.filter(e=>isAtrasado(e));
   document.getElementById('atr-count').textContent=l.length+' encomenda(s)';
-  if(!l.length){tb.innerHTML=emptyR(7,'Nenhuma encomenda atrasada');return;}
+  if(!l.length){tb.innerHTML=emptyR(8,'Nenhuma encomenda atrasada');return;}
   tb.innerHTML=l.map(e=>{
     const t=tempoDecorrido(e.criadoEm||e.createdAt);
-    return '<tr class="atrasado"><td><span class="proto">#'+(e.proto||'—')+'</span></td><td><span class="name">'+e.nome+'</span></td><td><span class="uh-tag">'+e.uh+'</span></td><td>'+(e.local||'—')+'</td><td><span class="atraso-tag">'+(t?t.txt:'—')+'</span></td><td>'+(e.avisado?'<span class="badge badge-avisado">sim</span>':'<span style="color:var(--muted);font-size:11px">nao</span>')+'</td><td style="display:flex;gap:4px">'+(e.status==='aguardando'&&!e.avisado?'<button class="btn btn-yellow btn-sm" onclick="marcarAvisado(\''+e.id+'\')">🔔 Avisar</button>':'')+'<button class="btn btn-green btn-sm" onclick="abrirRetirada(\''+e.id+'\',\''+e.nome.replace(/'/g,"\\'")+'\')">✓ Retirar</button><button class="btn btn-ghost btn-sm" onclick="verDetalhe(\''+e.id+'\')">QR</button></td></tr>';
+    const dias=t?Math.floor(t.horas/24):0;
+    const reproBadge=dias>=60?'<span class="atraso-tag">🔴 +60 dias</span>':dias>=30?'<span style="font-family:var(--mono);font-size:8px;color:var(--yellow);background:rgba(255,184,0,.1);padding:2px 6px;border-radius:4px;border:1px solid rgba(255,184,0,.2)">⚠ +30 dias</span>':'';
+    return '<tr class="atrasado"><td><span class="proto">#'+(e.proto||'—')+'</span></td><td><span class="name">'+e.nome+'</span></td><td><span class="uh-tag">'+e.uh+'</span></td><td>'+(e.local||'—')+'</td><td><span class="atraso-tag">'+(t?t.txt:'—')+'</span></td><td>'+(e.avisado?'<span class="badge badge-avisado">sim</span>':'<span style="color:var(--muted);font-size:11px">nao</span>')+'</td><td>'+reproBadge+'</td><td style="display:flex;gap:4px;flex-wrap:wrap">'+(e.status==='aguardando'&&!e.avisado?'<button class="btn btn-yellow btn-sm" onclick="marcarAvisado(\''+e.id+'\')">🔔</button>':'')+'<button class="btn btn-green btn-sm" onclick="abrirRetirada(\''+e.id+'\',\''+e.nome.replace(/'/g,"\\'")+'\')">✓</button>'+(dias>=30?'<button class="btn btn-ghost btn-sm" onclick="abrirReprotocolo(\''+e.id+'\')">↻ Reproto</button>':'')+'<button class="btn btn-ghost btn-sm" onclick="verDetalhe(\''+e.id+'\')">QR</button></td></tr>';
   }).join('');
+}
+
+function abrirReprotocolo(id){
+  const e=encs.find(x=>x.id===id);if(!e)return;
+  document.getElementById('reproto-id').value=id;
+  const t=tempoDecorrido(e.criadoEm);
+  const livroAtual=getLivroAtual();
+  document.getElementById('reproto-info').innerHTML=
+    '<div><strong>Morador:</strong> '+e.nome+'</div>'+
+    '<div><strong>UH:</strong> '+e.uh+'</div>'+
+    '<div><strong>Protocolo:</strong> <span style="color:var(--accent);font-weight:700">#'+(e.proto||'—')+'</span> — número mantido</div>'+
+    '<div><strong>Local:</strong> '+(e.local||'—')+'</div>'+
+    '<div><strong>Registrado em:</strong> '+fdt(e.criadoEm)+'</div>'+
+    '<div><strong>Tempo aguardando:</strong> <span style="color:var(--red);font-weight:700">'+(t?t.txt:'—')+'</span></div>'+
+    (livroAtual?'<div style="margin-top:8px;font-family:var(--mono);font-size:9px;color:var(--muted)">Livro ativo: '+livroAtual.nome+' — protocolo #'+e.proto+' ficará bloqueado no próximo livro até retirada</div>':'');
+  abrirM('reprotocolo');
+}
+
+async function confirmarReprotocolo(){
+  const id=document.getElementById('reproto-id').value;
+  const e=encs.find(x=>x.id===id);if(!e)return;
+  const livroAtual=getLivroAtual();
+  if(!confirm('Reprotocolar encomenda #'+e.proto+' de '+e.nome+'?\n\nO número #'+e.proto+' será mantido.\nUm novo cupom será gerado com faixa REPROTOCOLO.\nEste número ficará bloqueado no próximo livro até a retirada.'))return;
+  try{
+    // marca encomenda como reprotocolada — mantém mesmo número
+    await fetch(API+'/encomendas/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      reprotocolado:true,
+      reprotocoladoEm:new Date().toISOString(),
+      livroOrigem:livroAtual?livroAtual.nome:null
+    })});
+    const idx=encs.findIndex(x=>x.id===id);
+    if(idx>-1){encs[idx].reprotocolado=true;encs[idx].reprotocoladoEm=new Date().toISOString();}
+    updateStats();renderRec();renderEnc();renderAtrasadas();
+    fecharM('reprotocolo');
+    toast('↻ Reprotocolo #'+e.proto+' registrado! Imprima o novo cupom.');
+    log('ok','Reprotocolo: #'+e.proto+' ('+e.nome+') — mesmo número, novo cupom');
+    addAct('Reprotocolo realizado','#'+e.proto+' · '+e.nome,'var(--yellow)');
+  }catch(err){toast('Erro ao reprotocolar.');}
 }
 
 // ── CHART ──
