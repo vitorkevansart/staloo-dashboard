@@ -716,6 +716,8 @@ function showSec(n,el){
 }
 
 // ── API ──
+let ws=null;
+
 async function conectar(){
   log('info','Conectando em '+API+'...');
   try{
@@ -727,16 +729,63 @@ async function conectar(){
     toast('API conectada!');
     log('ok','Conectado — '+encs.length+' encomendas, '+mors.length+' moradores');
     addAct('API conectada','Backend respondendo','var(--green)');
-    setTimeout(autoRefresh,8000);
+    conectarWS();
   }catch(e){toast('Erro ao conectar. Backend rodando?');log('err','Falha: '+e.message);}
 }
 
+function conectarWS(){
+  const wsUrl=API.replace('https://','wss://').replace('http://','ws://');
+  try{
+    ws=new WebSocket(wsUrl);
+    ws.onopen=()=>{log('ok','WebSocket conectado — atualizacao em tempo real ativa');};
+    ws.onmessage=(e)=>{
+      try{
+        const d=JSON.parse(e.data);
+        if(d.tipo==='nova_encomenda'){
+          if(!encs.find(x=>x.id===d.encomenda.id)){
+            encs.unshift(d.encomenda);
+            toast('Nova encomenda recebida!');
+            beep();
+            addAct('Nova encomenda','UH '+d.encomenda.uh+' — '+d.encomenda.nome,'var(--accent)');
+            updateStats();renderRec();atualizarChart();
+            const sec=document.getElementById('s-encomendas');
+            if(sec&&sec.style.display!=='none')renderEnc();
+          }
+        } else if(d.tipo==='retirada'||d.tipo==='atualizacao_encomenda'){
+          const idx=encs.findIndex(x=>x.id===d.id);
+          if(idx>-1){Object.assign(encs[idx],d.dados);}
+          updateStats();renderRec();
+          const sec=document.getElementById('s-encomendas');
+          if(sec&&sec.style.display!=='none')renderEnc();
+          const secAtr=document.getElementById('s-atrasadas');
+          if(secAtr&&secAtr.style.display!=='none')renderAtrasadas();
+        } else if(d.tipo==='deletar_encomenda'){
+          encs=encs.filter(x=>x.id!==d.id);
+          updateStats();renderRec();renderEnc();atualizarChart();
+        }
+      }catch(err){}
+    };
+    ws.onclose=()=>{
+      log('info','WebSocket desconectado — reconectando em 5s...');
+      setTimeout(conectarWS,5000);
+    };
+    ws.onerror=()=>{
+      log('err','WebSocket erro — usando polling como fallback');
+      ws=null;
+      setTimeout(autoRefresh,8000);
+    };
+  }catch(err){
+    log('err','WebSocket nao suportado — usando polling');
+    setTimeout(autoRefresh,8000);
+  }
+}
+
 async function autoRefresh(){
+  if(ws&&ws.readyState===1)return; // WebSocket ativo, nao precisa de polling
   try{
     const[r1,r2]=await Promise.all([fetch(API+'/encomendas'),fetch(API+'/moradores')]);
     const novas=await r1.json();const novasMors=await r2.json();
     if(novas.length>encs.length){
-      const diff=novas.length-encs.length;
       toast('Nova encomenda recebida!');
       beep();
       addAct('Nova encomenda','Chegou automaticamente','var(--accent)');
