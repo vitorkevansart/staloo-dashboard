@@ -727,7 +727,7 @@ async function conectar(){
     toast('API conectada!');
     log('ok','Conectado — '+encs.length+' encomendas, '+mors.length+' moradores');
     addAct('API conectada','Backend respondendo','var(--green)');
-    setTimeout(autoRefresh,5000);
+    setTimeout(autoRefresh,8000);
   }catch(e){toast('Erro ao conectar. Backend rodando?');log('err','Falha: '+e.message);}
 }
 
@@ -748,7 +748,7 @@ async function autoRefresh(){
     const secAtr=document.getElementById('s-atrasadas');
     if(secAtr&&secAtr.style.display!=='none')renderAtrasadas();
   }catch(e){}
-  setTimeout(autoRefresh,5000);
+  setTimeout(autoRefresh,8000);
 }
 
 function beep(){
