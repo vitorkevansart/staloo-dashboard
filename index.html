@@ -6,6 +6,7 @@
 <title>Staloo — Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root{--bg:#080810;--surface:#0f0f1e;--surface2:#161628;--surface3:#1e1e35;--border:#1e1e38;--border2:#2a2a48;--accent:#2D6FF5;--ag:rgba(45,111,245,0.12);--ag2:rgba(45,111,245,0.06);--cyan:#00D4FF;--cg:rgba(0,212,255,0.1);--green:#00E5A0;--yellow:#FFB800;--red:#FF4D6A;--text:#F0F0FF;--text2:#9090B8;--muted:#484868;--sans:'Space Grotesk',sans-serif;--mono:'JetBrains Mono',monospace;}
 [data-theme="light"]{--bg:#F2F2FA;--surface:#FFFFFF;--surface2:#EBEBF8;--surface3:#E2E2F5;--border:#DCDCF0;--border2:#C8C8E8;--accent:#2D6FF5;--ag:rgba(45,111,245,0.08);--ag2:rgba(45,111,245,0.04);--cyan:#0099BB;--cg:rgba(0,153,187,0.1);--green:#00AA78;--yellow:#CC9000;--red:#DD3355;--text:#0C0C22;--text2:#505070;--muted:#9090B0;}
@@ -603,8 +604,20 @@ tr.atrasado:hover td{background:rgba(255,77,106,.08);}
 <div class="mo" id="mo-importar">
   <div class="modal">
     <div class="modal-title">Importar Moradores <button class="mclose" onclick="fecharM('importar')">✕</button></div>
-    <p style="font-size:12px;color:var(--text2);margin-bottom:12px">Cole no formato: <span style="font-family:var(--mono);color:var(--cyan)">UH, Nome, WhatsApp</span> — um por linha.</p>
-    <div class="fg"><textarea class="fta" id="import-data" style="min-height:140px;font-family:var(--mono);font-size:11px" placeholder="101, João Silva, 11999990001&#10;102, Maria Santos, 11999990002"></textarea></div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:12px">Anexe uma planilha Excel ou cole os dados manualmente.</p>
+    <div style="margin-bottom:14px">
+      <label class="flabel">Importar do Excel (.xlsx)</label>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:6px">
+        <input type="file" id="import-xlsx" accept=".xlsx,.xls,.csv" style="display:none" onchange="lerExcel(this)">
+        <button class="btn btn-ghost" onclick="document.getElementById('import-xlsx').click()">📎 Anexar planilha</button>
+        <span id="import-xlsx-nome" style="font-family:var(--mono);font-size:10px;color:var(--muted)">Nenhum arquivo selecionado</span>
+      </div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:6px">Colunas esperadas: UH e Nome (em qualquer ordem)</div>
+    </div>
+    <div class="fg">
+      <label class="flabel">Ou cole manualmente — formato: UH, Nome</label>
+      <textarea class="fta" id="import-data" style="min-height:120px;font-family:var(--mono);font-size:11px" placeholder="301, Joao Silva&#10;302, Maria Santos"></textarea>
+    </div>
     <div class="mactions">
       <button class="btn btn-ghost" onclick="fecharM('importar')">Cancelar</button>
       <button class="btn btn-primary" onclick="executarImport()">📥 Importar</button>
@@ -727,7 +740,7 @@ function showSec(n,el){
   if(n==='atrasadas')renderAtrasadas();
   if(n==='relatorio')renderRelatorio();
   if(n==='livros')renderLivros();
-  if(n==='limpeza')previewLimpeza();
+  // limpeza só renderiza quando clicar em "Ver Prévia" manualmente
 }
 
 // ── API ──
@@ -744,7 +757,7 @@ async function conectar(){
     toast('API conectada!');
     log('ok','Conectado — '+encs.length+' encomendas, '+mors.length+' moradores');
     addAct('API conectada','Backend respondendo','var(--green)');
-    conectarWS();
+    if(!ws||ws.readyState===3)conectarWS();
   }catch(e){toast('Erro ao conectar. Backend rodando?');log('err','Falha: '+e.message);}
 }
 
@@ -824,10 +837,13 @@ function beep(){
 function tempoDecorrido(iso){
   if(!iso)return null;
   const diff=Date.now()-new Date(iso).getTime();
-  const min=Math.floor(diff/60000);const h=Math.floor(min/60);const d=Math.floor(h/24);
+  const min=Math.floor(diff/60000);
+  const h=Math.floor(min/60);
+  const d=Math.floor(h/24);
   if(d>0)return{txt:d+'d',horas:h};
   if(h>0)return{txt:h+'h',horas:h};
-  return{txt:min+'min',horas:min/60};
+  if(min>0)return{txt:min+'min',horas:min/60};
+  return{txt:'agora',horas:0};
 }
 function isAtrasado(e){if(e.status!=='aguardando')return false;const t=tempoDecorrido(e.criadoEm||e.createdAt);return t&&t.horas>=horasAtraso;}
 function fdt(iso){if(!iso)return'—';const d=new Date(iso);return d.toLocaleDateString('pt-BR')+' '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});}
@@ -1323,6 +1339,43 @@ function exportarCSV(){
 }
 
 // ── IMPORTAR ──
+function lerExcel(input){
+  const file=input.files[0];
+  if(!file)return;
+  document.getElementById('import-xlsx-nome').textContent=file.name;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const data=new Uint8Array(e.target.result);
+      const wb=XLSX.read(data,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      if(!rows.length){toast('Planilha vazia!');return;}
+      // Detecta colunas UH e Nome automaticamente
+      const header=rows[0].map(h=>String(h).toLowerCase().trim());
+      let colUH=-1,colNome=-1;
+      header.forEach(function(h,i){
+        if(h.includes('uh')||h.includes('apto')||h.includes('apart')||h.includes('unidade'))colUH=i;
+        if(h.includes('nome')||h.includes('hospede')||h.includes('morador')||h.includes('residente'))colNome=i;
+      });
+      // Se nao achou header, assume coluna 0=UH e 1=Nome
+      if(colUH===-1)colUH=0;
+      if(colNome===-1)colNome=1;
+      const linhas=[];
+      rows.slice(1).forEach(function(row){
+        const uh=String(row[colUH]||'').trim();
+        const nome=String(row[colNome]||'').trim();
+        if(uh&&nome)linhas.push(uh+', '+nome);
+      });
+      document.getElementById('import-data').value=linhas.join('\n');
+      toast('Planilha lida! '+linhas.length+' moradores encontrados. Clique em Importar para confirmar.');
+    }catch(err){
+      toast('Erro ao ler planilha: '+err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
 async function executarImport(){
   const raw=document.getElementById('import-data').value.trim();
   if(!raw){toast('Cole os dados primeiro!');return;}
