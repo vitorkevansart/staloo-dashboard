@@ -1351,24 +1351,31 @@ function lerExcel(input){
       const ws=wb.Sheets[wb.SheetNames[0]];
       const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
       if(!rows.length){toast('Planilha vazia!');return;}
-      // Detecta colunas UH e Nome automaticamente
-      const header=rows[0].map(h=>String(h).toLowerCase().trim());
-      let colUH=-1,colNome=-1;
-      header.forEach(function(h,i){
-        if(h.includes('uh')||h.includes('apto')||h.includes('apart')||h.includes('unidade'))colUH=i;
-        if(h.includes('nome')||h.includes('hospede')||h.includes('morador')||h.includes('residente'))colNome=i;
-      });
-      // Se nao achou header, assume coluna 0=UH e 1=Nome
-      if(colUH===-1)colUH=0;
-      if(colNome===-1)colNome=1;
+
+      // Detecta se primeira linha e header ou dados
+      const primeiraLinha=rows[0].map(h=>String(h).toLowerCase().trim());
+      const temHeader=primeiraLinha.some(h=>h.includes('nome')||h.includes('uh')||h.includes('apto')||h.includes('apart'));
+
+      let colUH=2, colNome=0; // padrao da planilha do hotel: col0=Nome, col2=UH
+      let startRow=0;
+
+      if(temHeader){
+        // tem cabecalho — detecta colunas
+        primeiraLinha.forEach(function(h,i){
+          if(h.includes('uh')||h.includes('apto')||h.includes('apart')||h.includes('unidade'))colUH=i;
+          if(h.includes('nome')||h.includes('hospede')||h.includes('morador'))colNome=i;
+        });
+        startRow=1;
+      }
+
       const linhas=[];
-      rows.slice(1).forEach(function(row){
+      rows.slice(startRow).forEach(function(row){
+        const nome=String(row[colNome]||'').trim().replace(/\s+/g,' ');
         const uh=String(row[colUH]||'').trim();
-        const nome=String(row[colNome]||'').trim();
-        if(uh&&nome)linhas.push(uh+', '+nome);
+        if(uh&&nome&&nome!=='*'&&!isNaN(uh[0]))linhas.push(uh+', '+nome);
       });
       document.getElementById('import-data').value=linhas.join('\n');
-      toast('Planilha lida! '+linhas.length+' moradores encontrados. Clique em Importar para confirmar.');
+      toast('Planilha lida! '+linhas.length+' moradores encontrados. Clique em Importar.');
     }catch(err){
       toast('Erro ao ler planilha: '+err.message);
     }
