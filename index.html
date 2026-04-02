@@ -1390,8 +1390,11 @@ async function executarImport(){
   let ok=0,err=0;
   for(const linha of linhas){
     const p=linha.split(',').map(x=>x.trim());
-    if(p.length<3){err++;continue;}
-    try{const r=await fetch(API+'/moradores',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uh:p[0],nome:p[1],wpp:p[2]})});const d=await r.json();mors.push(d);ok++;}
+    if(p.length<2){err++;continue;}
+    const uh=p[0];
+    const nome=p.slice(1).join(',').trim(); // nome pode ter virgula
+    if(!uh||!nome){err++;continue;}
+    try{const r=await fetch(API+'/moradores',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uh,nome,wpp:p[2]||''})});const d=await r.json();mors.push(d);ok++;}
     catch(e){err++;}
   }
   updateStats();renderMor();fecharM('importar');
