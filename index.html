@@ -1388,14 +1388,23 @@ async function executarImport(){
   if(!raw){toast('Cole os dados primeiro!');return;}
   const linhas=raw.split('\n').map(l=>l.trim()).filter(Boolean);
   let ok=0,err=0;
-  for(const linha of linhas){
-    const p=linha.split(',').map(x=>x.trim());
-    if(p.length<2){err++;continue;}
-    const uh=p[0];
-    const nome=p.slice(1).join(',').trim(); // nome pode ter virgula
-    if(!uh||!nome){err++;continue;}
-    try{const r=await fetch(API+'/moradores',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uh,nome,wpp:p[2]||''})});const d=await r.json();mors.push(d);ok++;}
-    catch(e){err++;}
+  toast('Importando '+linhas.length+' moradores...');
+  // processa em lotes de 10 simultaneos
+  const lote=10;
+  for(let i=0;i<linhas.length;i+=lote){
+    const batch=linhas.slice(i,i+lote);
+    await Promise.all(batch.map(async function(linha){
+      const p=linha.split(',').map(x=>x.trim());
+      if(p.length<2){err++;return;}
+      const uh=p[0];
+      const nome=p.slice(1).join(',').trim();
+      if(!uh||!nome){err++;return;}
+      try{
+        const r=await fetch(API+'/moradores',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uh,nome,wpp:p[2]||''})});
+        const d=await r.json();
+        mors.push(d);ok++;
+      }catch(e){err++;}
+    }));
   }
   updateStats();renderMor();fecharM('importar');
   toast(ok+' importados'+(err?' | '+err+' erros':'')+'!');
