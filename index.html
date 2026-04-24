@@ -1583,6 +1583,9 @@ function exportarLivroPDF(nomeLivro, autoSave){
   const TEXT='#F0F0FF', MUTED='#9090B8', BORDER='#2a2a48';
 
   function drawBlock(doc, enc, x, y, w, h){
+    const retirado = enc.status === 'retirado' || enc.status === 'arquivado';
+    const reprotocolado = enc.reprotocolar === true || enc.reprotocolado === true;
+
     // fundo
     doc.setFillColor(15,15,30);
     doc.roundedRect(x, y, w, h, 2, 2, 'F');
@@ -1593,84 +1596,123 @@ function exportarLivroPDF(nomeLivro, autoSave){
 
     let cy = y + 4;
 
-    // CABEÇALHO — Para / De / Local
+    // CABEÇALHO — Para / UH / De / Local
     doc.setFillColor(30,30,53);
-    doc.roundedRect(x+2, cy, w-4, 13, 1, 1, 'F');
-    doc.setFontSize(6); doc.setTextColor(0,212,255);
+    doc.roundedRect(x+2, cy, w-4, 15, 1, 1, 'F');
+
+    doc.setFontSize(5.5); doc.setTextColor(0,212,255);
     doc.text('PARA', x+4, cy+3.5);
-    doc.setTextColor(240,240,255); doc.setFontSize(7.5);
-    doc.text(enc.nome || '—', x+4, cy+8, {maxWidth: (w-8)*0.55});
-
-    doc.setFontSize(6); doc.setTextColor(0,212,255);
-    doc.text('DE', x + w*0.6, cy+3.5);
     doc.setTextColor(240,240,255); doc.setFontSize(7);
-    doc.text(enc.de || '—', x + w*0.6, cy+8, {maxWidth: (w-8)*0.38});
+    doc.text(enc.nome || '—', x+4, cy+8, {maxWidth: (w-8)*0.52});
+    doc.setFontSize(5.5); doc.setTextColor(0,212,255);
+    doc.text('UH', x+4, cy+13);
+    doc.setTextColor(255,77,106); doc.setFontSize(7);
+    doc.text(String(enc.uh || '—'), x+10, cy+13);
 
-    doc.setFontSize(6); doc.setTextColor(0,212,255);
-    doc.text('LOCAL', x+4, cy+12);
+    doc.setFontSize(5.5); doc.setTextColor(0,212,255);
+    doc.text('DE', x + w*0.58, cy+3.5);
     doc.setTextColor(240,240,255); doc.setFontSize(7);
-    doc.text(enc.local || '—', x+16, cy+12);
-    cy += 16;
+    doc.text(enc.de || '—', x + w*0.58, cy+8, {maxWidth: (w-8)*0.40});
+    doc.setFontSize(5.5); doc.setTextColor(0,212,255);
+    doc.text('LOCAL', x + w*0.58, cy+13);
+    doc.setTextColor(240,240,255); doc.setFontSize(7);
+    doc.text(enc.local || '—', x + w*0.58+10, cy+13, {maxWidth: (w-8)*0.38});
+    cy += 18;
 
-    // linha divisória pontilhada
+    // linha pontilhada
     doc.setDrawColor(42,42,72); doc.setLineWidth(0.2);
     doc.setLineDashPattern([1,1], 0);
     doc.line(x+2, cy, x+w-2, cy);
     doc.setLineDashPattern([], 0);
     cy += 3;
 
-    // PROTOCOLO em destaque
-    doc.setFontSize(6); doc.setTextColor(0,212,255);
+    // PROTOCOLO em destaque + data/hora + descrição
+    doc.setFontSize(5.5); doc.setTextColor(0,212,255);
     doc.text('PROTOCOLO Nº', x+4, cy);
-    doc.setFontSize(18); doc.setTextColor(255,77,106);
-    doc.text(String(enc.proto || '—'), x+4, cy+8);
-    doc.setFontSize(7); doc.setTextColor(144,144,184);
+    doc.setFontSize(16); doc.setTextColor(255,77,106);
+    doc.text(String(enc.proto || '—'), x+4, cy+7);
+
     const dt = enc.criadoEm ? new Date(enc.criadoEm) : null;
     const dtStr = dt ? dt.toLocaleDateString('pt-BR') : '—';
     const hrStr = dt ? dt.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'}) : '—';
-    doc.text('Data: '+dtStr+'  Hora: '+hrStr, x+4, cy+13);
-    doc.setFontSize(7); doc.setTextColor(240,240,255);
-    doc.text((enc.desc || '—'), x+4, cy+18, {maxWidth: w-8});
+    doc.setFontSize(6); doc.setTextColor(144,144,184);
+    doc.text('Data: '+dtStr, x+4, cy+11);
+    doc.text('Hora: '+hrStr, x+4, cy+15);
+    doc.setFontSize(6.5); doc.setTextColor(240,240,255);
+    doc.text('Item: '+(enc.desc || '—'), x+4, cy+19, {maxWidth: w/2-4});
     cy += 22;
 
-    // linha divisória
+    // linha pontilhada
     doc.setDrawColor(42,42,72); doc.setLineWidth(0.2);
     doc.setLineDashPattern([1,1], 0);
     doc.line(x+2, cy, x+w-2, cy);
     doc.setLineDashPattern([], 0);
     cy += 3;
 
-    // CONTROLE — Recebido por / Assinatura / Entregue por / Data entrega
-    doc.setFontSize(6); doc.setTextColor(144,144,184);
+    // CONTROLE esquerdo: Recebido por / Entregue por / Data entrega
+    doc.setFontSize(5.5); doc.setTextColor(144,144,184);
     doc.text('RECEBIDO POR:', x+4, cy);
     doc.setDrawColor(42,42,72); doc.setLineWidth(0.3);
-    doc.line(x+26, cy, x+w/2-2, cy);
-
-    doc.text('ASSINATURA:', x+w/2, cy);
-    doc.line(x+w/2+18, cy, x+w-4, cy);
+    doc.line(x+25, cy, x+w/2-2, cy);
     cy += 5;
 
     doc.text('ENTREGUE POR:', x+4, cy);
-    doc.line(x+26, cy, x+w/2-2, cy);
-    doc.text('DATA ENTREGA:', x+w/2, cy);
-    doc.line(x+w/2+22, cy, x+w-4, cy);
+    const entregue = enc.retiradoPor || '';
+    if(entregue){ doc.setTextColor(240,240,255); doc.setFontSize(6.5); doc.text(entregue, x+26, cy, {maxWidth: w/2-28}); }
+    else { doc.setDrawColor(42,42,72); doc.line(x+26, cy, x+w/2-2, cy); }
+    doc.setFontSize(5.5); doc.setTextColor(144,144,184);
+    cy += 5;
+
+    doc.text('DATA ENTREGA:', x+4, cy);
+    const dtEntrega = enc.retiradoEm ? new Date(enc.retiradoEm).toLocaleDateString('pt-BR') : '';
+    if(dtEntrega){ doc.setTextColor(240,240,255); doc.setFontSize(6.5); doc.text(dtEntrega, x+26, cy); }
+    else { doc.setDrawColor(42,42,72); doc.line(x+26, cy, x+w/2-2, cy); }
     cy += 6;
+
+    // ASSINATURA — lado direito
+    const sigX = x + w/2 + 2;
+    const sigY = cy - 21;
+    const sigW = w/2 - 6;
+    const sigH = 18;
+    doc.setFontSize(5.5); doc.setTextColor(144,144,184);
+    doc.text('ASSINATURA:', sigX, sigY);
+
+    if(reprotocolado){
+      doc.setFillColor(255,77,106);
+      doc.roundedRect(sigX, sigY+2, sigW, sigH-2, 1, 1, 'F');
+      doc.setFontSize(7); doc.setTextColor(255,255,255);
+      doc.text('REPROTOCOLADO', sigX + sigW/2, sigY+2+(sigH-2)/2, {align:'center', baseline:'middle'});
+    } else if(enc.assinatura && enc.assinatura.startsWith('data:image')){
+      try { doc.addImage(enc.assinatura, 'JPEG', sigX, sigY+2, sigW, sigH-2); }
+      catch(e){ doc.setDrawColor(42,42,72); doc.setLineWidth(0.3); doc.rect(sigX, sigY+2, sigW, sigH-2, 'S'); }
+    } else {
+      doc.setDrawColor(42,42,72); doc.setLineWidth(0.3);
+      doc.rect(sigX, sigY+2, sigW, sigH-2, 'S');
+    }
+
+    // linha pontilhada
+    doc.setDrawColor(42,42,72); doc.setLineWidth(0.2);
+    doc.setLineDashPattern([1,1], 0);
+    doc.line(x+2, cy, x+w-2, cy);
+    doc.setLineDashPattern([], 0);
+    cy += 3;
 
     // STATUS — checkboxes
     doc.setFontSize(6); doc.setTextColor(144,144,184);
-    const retirado = enc.status === 'retirado' || enc.status === 'arquivado';
-    // checkbox Finalizado
     doc.setDrawColor(42,42,72); doc.setLineWidth(0.4);
     doc.rect(x+4, cy-3, 4, 4, 'S');
-    if(retirado){ doc.setDrawColor(0,212,255); doc.line(x+4.5,cy-1,x+6,cy+0.5); doc.line(x+6,cy+0.5,x+8,cy-2.5); }
-    doc.setTextColor(144,144,184);
-    doc.text('Finalizado', x+10, cy);
+    if(retirado||reprotocolado){ doc.setDrawColor(0,212,255); doc.line(x+4.5,cy-1,x+6,cy+0.5); doc.line(x+6,cy+0.5,x+8,cy-2.5); }
+    doc.setTextColor(144,144,184); doc.text('Finalizado', x+10, cy);
 
-    // checkbox Retirado
     doc.setDrawColor(42,42,72); doc.setLineWidth(0.4);
     doc.rect(x+w/2, cy-3, 4, 4, 'S');
     if(retirado){ doc.setDrawColor(0,212,255); doc.line(x+w/2+0.5,cy-1,x+w/2+2,cy+0.5); doc.line(x+w/2+2,cy+0.5,x+w/2+4,cy-2.5); }
     doc.text('Retirado', x+w/2+6, cy);
+
+    if(enc.registradoPor){
+      doc.setFontSize(5); doc.setTextColor(72,72,104);
+      doc.text('Reg: '+enc.registradoPor, x+4, y+h-2);
+    }
   }
 
   // preenche páginas
