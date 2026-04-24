@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 :root{--bg:#080810;--surface:#0f0f1e;--surface2:#161628;--surface3:#1e1e35;--border:#1e1e38;--border2:#2a2a48;--accent:#2D6FF5;--ag:rgba(45,111,245,0.12);--ag2:rgba(45,111,245,0.06);--cyan:#00D4FF;--cg:rgba(0,212,255,0.1);--green:#00E5A0;--yellow:#FFB800;--red:#FF4D6A;--text:#F0F0FF;--text2:#9090B8;--muted:#484868;--sans:'Inter',sans-serif;--mono:'Inter',sans-serif;}
 [data-theme="light"]{--bg:#F2F2FA;--surface:#FFFFFF;--surface2:#EBEBF8;--surface3:#E2E2F5;--border:#DCDCF0;--border2:#C8C8E8;--accent:#2D6FF5;--ag:rgba(45,111,245,0.08);--ag2:rgba(45,111,245,0.04);--cyan:#0099BB;--cg:rgba(0,153,187,0.1);--green:#00AA78;--yellow:#CC9000;--red:#DD3355;--text:#0C0C22;--text2:#505070;--muted:#9090B0;}
@@ -314,6 +315,7 @@ tr.atrasado:hover td{background:rgba(255,77,106,.08);}
         <input class="sinput" type="text" placeholder="Buscar por nome ou UH..." id="sm" oninput="renderMor()">
         <button class="btn btn-primary btn-sm" onclick="abrirM('morador')">+ Cadastrar</button>
         <button class="btn btn-ghost btn-sm" onclick="abrirM('importar')">📥 Importar Planilha</button>
+        <button class="btn btn-ghost btn-sm" onclick="abrirM('importar-vcf')">📇 Importar Contatos (.vcf)</button>
       </div>
       <div class="panel">
         <div class="panel-hd"><div class="panel-title">◎ Moradores</div></div>
@@ -385,7 +387,7 @@ tr.atrasado:hover td{background:rgba(255,77,106,.08);}
       </div>
       <div class="panel">
         <div class="panel-hd"><div class="panel-title">Histórico de Livros</div></div>
-        <div class="tw"><table><thead><tr><th>Livro</th><th>Protocolos</th><th>Status</th><th>Pendentes</th><th>Encerrado em</th></tr></thead><tbody id="tb-livros"></tbody></table></div>
+        <div class="tw"><table><thead><tr><th>Livro</th><th>Protocolos</th><th>Status</th><th>Pendentes</th><th>Encerrado em</th><th></th></tr></thead><tbody id="tb-livros"></tbody></table></div>
       </div>
     </div>
 
@@ -905,7 +907,8 @@ function renderLivros(){
   tb.innerHTML=livros.map(l=>{
     const qtd=encs.filter(e=>e.livro===l.nome).length;
     const pend=encs.filter(e=>e.livro===l.nome&&e.status==='aguardando').length;
-    return'<tr><td><span class="name">'+l.nome+'</span></td><td style="font-family:var(--mono)">'+qtd+' / '+l.max+'</td><td>'+(l.ativo?'<span class="badge badge-avisado">ativo</span>':'<span class="badge badge-done">encerrado</span>')+'</td><td style="font-family:var(--mono);color:'+(pend>0?'var(--yellow)':'var(--muted)')+'">'+pend+'</td><td style="font-family:var(--mono);font-size:10px;color:var(--muted)">'+(l.encerradoEm?fdt(l.encerradoEm):'—')+'</td></tr>';
+    const btnExport=!l.ativo?'<button class="btn btn-ghost btn-sm" onclick="exportarLivroPDF(\''+l.nome+'\')">📄 Exportar</button>':'';
+    return'<tr><td><span class="name">'+l.nome+'</span></td><td style="font-family:var(--mono)">'+qtd+' / '+l.max+'</td><td>'+(l.ativo?'<span class="badge badge-avisado">ativo</span>':'<span class="badge badge-done">encerrado</span>')+'</td><td style="font-family:var(--mono);color:'+(pend>0?'var(--yellow)':'var(--muted)')+'">'+pend+'</td><td style="font-family:var(--mono);font-size:10px;color:var(--muted)">'+(l.encerradoEm?fdt(l.encerradoEm):'—')+'</td><td>'+btnExport+'</td></tr>';
   }).reverse().join('');
 }
 
@@ -944,6 +947,7 @@ async function encerrarLivro(){
     toast('Livro '+atual.nome+' encerrado com sucesso!');
   }
   log('ok','Livro '+atual.nome+' encerrado.');
+  exportarLivroPDF(atual.nome, true);
   renderLivros();
 }
 
@@ -1560,6 +1564,312 @@ function renderCfgUsers(){
 }
 
 log('sys','Staloo Dashboard v2.2.0 inicializado');
+
+// ── EXPORTAR LIVRO PDF ──
+function exportarLivroPDF(nomeLivro, autoSave){
+  const lista = encs.filter(e => e.livro === nomeLivro);
+  if(!lista.length){ toast('Nenhuma encomenda neste livro.'); return; }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation:'landscape', unit:'mm', format:'a4' });
+  const W=297, H=210;
+  const COLS=4, ROWS=2, PER_PAGE=COLS*ROWS;
+  const PAD=6, GAP=4;
+  const cellW=(W - PAD*2 - GAP*(COLS-1)) / COLS;
+  const cellH=(H - PAD*2 - GAP*(ROWS-1)) / ROWS;
+
+  // cores
+  const BG='#080810', CYAN='#00D4FF', BLUE='#2D6FF5', RED='#FF4D6A';
+  const TEXT='#F0F0FF', MUTED='#9090B8', BORDER='#2a2a48';
+
+  function drawBlock(doc, enc, x, y, w, h){
+    // fundo
+    doc.setFillColor(15,15,30);
+    doc.roundedRect(x, y, w, h, 2, 2, 'F');
+    // borda
+    doc.setDrawColor(42,42,72);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(x, y, w, h, 2, 2, 'S');
+
+    let cy = y + 4;
+
+    // CABEÇALHO — Para / De / Local
+    doc.setFillColor(30,30,53);
+    doc.roundedRect(x+2, cy, w-4, 13, 1, 1, 'F');
+    doc.setFontSize(6); doc.setTextColor(0,212,255);
+    doc.text('PARA', x+4, cy+3.5);
+    doc.setTextColor(240,240,255); doc.setFontSize(7.5);
+    doc.text(enc.nome || '—', x+4, cy+8, {maxWidth: (w-8)*0.55});
+
+    doc.setFontSize(6); doc.setTextColor(0,212,255);
+    doc.text('DE', x + w*0.6, cy+3.5);
+    doc.setTextColor(240,240,255); doc.setFontSize(7);
+    doc.text(enc.de || '—', x + w*0.6, cy+8, {maxWidth: (w-8)*0.38});
+
+    doc.setFontSize(6); doc.setTextColor(0,212,255);
+    doc.text('LOCAL', x+4, cy+12);
+    doc.setTextColor(240,240,255); doc.setFontSize(7);
+    doc.text(enc.local || '—', x+16, cy+12);
+    cy += 16;
+
+    // linha divisória pontilhada
+    doc.setDrawColor(42,42,72); doc.setLineWidth(0.2);
+    doc.setLineDashPattern([1,1], 0);
+    doc.line(x+2, cy, x+w-2, cy);
+    doc.setLineDashPattern([], 0);
+    cy += 3;
+
+    // PROTOCOLO em destaque
+    doc.setFontSize(6); doc.setTextColor(0,212,255);
+    doc.text('PROTOCOLO Nº', x+4, cy);
+    doc.setFontSize(18); doc.setTextColor(255,77,106);
+    doc.text(String(enc.proto || '—'), x+4, cy+8);
+    doc.setFontSize(7); doc.setTextColor(144,144,184);
+    const dt = enc.criadoEm ? new Date(enc.criadoEm) : null;
+    const dtStr = dt ? dt.toLocaleDateString('pt-BR') : '—';
+    const hrStr = dt ? dt.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'}) : '—';
+    doc.text('Data: '+dtStr+'  Hora: '+hrStr, x+4, cy+13);
+    doc.setFontSize(7); doc.setTextColor(240,240,255);
+    doc.text((enc.desc || '—'), x+4, cy+18, {maxWidth: w-8});
+    cy += 22;
+
+    // linha divisória
+    doc.setDrawColor(42,42,72); doc.setLineWidth(0.2);
+    doc.setLineDashPattern([1,1], 0);
+    doc.line(x+2, cy, x+w-2, cy);
+    doc.setLineDashPattern([], 0);
+    cy += 3;
+
+    // CONTROLE — Recebido por / Assinatura / Entregue por / Data entrega
+    doc.setFontSize(6); doc.setTextColor(144,144,184);
+    doc.text('RECEBIDO POR:', x+4, cy);
+    doc.setDrawColor(42,42,72); doc.setLineWidth(0.3);
+    doc.line(x+26, cy, x+w/2-2, cy);
+
+    doc.text('ASSINATURA:', x+w/2, cy);
+    doc.line(x+w/2+18, cy, x+w-4, cy);
+    cy += 5;
+
+    doc.text('ENTREGUE POR:', x+4, cy);
+    doc.line(x+26, cy, x+w/2-2, cy);
+    doc.text('DATA ENTREGA:', x+w/2, cy);
+    doc.line(x+w/2+22, cy, x+w-4, cy);
+    cy += 6;
+
+    // STATUS — checkboxes
+    doc.setFontSize(6); doc.setTextColor(144,144,184);
+    const retirado = enc.status === 'retirado' || enc.status === 'arquivado';
+    // checkbox Finalizado
+    doc.setDrawColor(42,42,72); doc.setLineWidth(0.4);
+    doc.rect(x+4, cy-3, 4, 4, 'S');
+    if(retirado){ doc.setDrawColor(0,212,255); doc.line(x+4.5,cy-1,x+6,cy+0.5); doc.line(x+6,cy+0.5,x+8,cy-2.5); }
+    doc.setTextColor(144,144,184);
+    doc.text('Finalizado', x+10, cy);
+
+    // checkbox Retirado
+    doc.setDrawColor(42,42,72); doc.setLineWidth(0.4);
+    doc.rect(x+w/2, cy-3, 4, 4, 'S');
+    if(retirado){ doc.setDrawColor(0,212,255); doc.line(x+w/2+0.5,cy-1,x+w/2+2,cy+0.5); doc.line(x+w/2+2,cy+0.5,x+w/2+4,cy-2.5); }
+    doc.text('Retirado', x+w/2+6, cy);
+  }
+
+  // preenche páginas
+  const paginas = Math.ceil(lista.length / PER_PAGE);
+  for(let p=0; p<paginas; p++){
+    if(p>0) doc.addPage('a4','landscape');
+    // fundo da página
+    doc.setFillColor(8,8,16);
+    doc.rect(0,0,W,H,'F');
+
+    // cabeçalho da página
+    doc.setFontSize(8); doc.setTextColor(0,212,255);
+    doc.text('STALOO — LIVRO '+nomeLivro, PAD, PAD-0.5);
+    doc.setFontSize(6.5); doc.setTextColor(144,144,184);
+    doc.text('Gerado em '+new Date().toLocaleString('pt-BR'), W-PAD, PAD-0.5, {align:'right'});
+    if(paginas>1) doc.text('Página '+(p+1)+' / '+paginas, W/2, PAD-0.5, {align:'center'});
+
+    const slice = lista.slice(p*PER_PAGE, (p+1)*PER_PAGE);
+    slice.forEach((enc, i) => {
+      const col = i % COLS;
+      const row = Math.floor(i / COLS);
+      const x = PAD + col*(cellW+GAP);
+      const y = PAD+3 + row*(cellH+GAP);
+      // borda pontilhada de separação
+      if(col>0){
+        doc.setDrawColor(42,42,72); doc.setLineWidth(0.2);
+        doc.setLineDashPattern([1.5,1.5],0);
+        doc.line(x-GAP/2, y, x-GAP/2, y+cellH);
+        doc.setLineDashPattern([],0);
+      }
+      drawBlock(doc, enc, x, y, cellW, cellH);
+    });
+  }
+
+  const nomeArq = 'Staloo_Livro_'+nomeLivro.replace(/\//g,'-')+'_'+new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')+'.pdf';
+  if(autoSave){
+    doc.save(nomeArq);
+    toast('📄 PDF do livro '+nomeLivro+' exportado!');
+  } else {
+    doc.save(nomeArq);
+  }
+}
+
+// ── IMPORTAR CONTATOS VCF ──
+var vcfPendentes = []; // contatos aguardando vinculação manual
+
+function lerVCF(input){
+  const file = input.files[0];
+  if(!file) return;
+  document.getElementById('import-vcf-nome').textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    const txt = e.target.result;
+    const contatos = [];
+    // parse básico do VCF
+    const vcards = txt.split(/BEGIN:VCARD/i).filter(Boolean);
+    vcards.forEach(function(v){
+      const nomeMatch = v.match(/FN:(.+)/i) || v.match(/N:([^;\n]+)/i);
+      const telMatch = v.match(/TEL[^:]*:([+\d\s\-().]+)/i);
+      if(nomeMatch && telMatch){
+        const nome = nomeMatch[1].trim().replace(/\r/g,'');
+        const tel = telMatch[1].trim().replace(/[\s\-().+]/g,'').replace(/^55/,'');
+        if(nome && tel.length >= 10) contatos.push({nome, tel});
+      }
+    });
+    if(!contatos.length){ toast('Nenhum contato encontrado no arquivo.'); return; }
+    toast(contatos.length+' contatos lidos. Processando vinculação...');
+    processarVCF(contatos);
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function similaridade(a, b){
+  // Distância de Levenshtein normalizada
+  a = a.toLowerCase().trim();
+  b = b.toLowerCase().trim();
+  if(a===b) return 1;
+  const m=a.length, n=b.length;
+  if(!m||!n) return 0;
+  const dp=Array.from({length:m+1},(_,i)=>Array.from({length:n+1},(_,j)=>i===0?j:j===0?i:0));
+  for(let i=1;i<=m;i++) for(let j=1;j<=n;j++)
+    dp[i][j]=a[i-1]===b[j-1]?dp[i-1][j-1]:1+Math.min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1]);
+  return 1 - dp[m][n]/Math.max(m,n);
+}
+
+function processarVCF(contatos){
+  const autoVinculados = [];
+  const incertos = [];
+  const semMatch = [];
+
+  const morseSemTel = mors.filter(m => !m.wpp);
+
+  contatos.forEach(function(c){
+    let melhorScore = 0, melhorMor = null;
+    morseSemTel.forEach(function(m){
+      const s = similaridade(c.nome, m.nome);
+      if(s > melhorScore){ melhorScore = s; melhorMor = m; }
+    });
+    if(melhorScore >= 0.90 && melhorMor){
+      autoVinculados.push({contato:c, morador:melhorMor, score:melhorScore});
+    } else if(melhorScore >= 0.60 && melhorMor){
+      incertos.push({contato:c, morador:melhorMor, score:melhorScore});
+    } else {
+      semMatch.push(c);
+    }
+  });
+
+  // aplica automáticos
+  Promise.all(autoVinculados.map(function(av){
+    return fetch(API+'/moradores/'+av.morador.id, {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({wpp:av.contato.tel})})
+      .then(function(){ const m=mors.find(x=>x.id===av.morador.id); if(m) m.wpp=av.contato.tel; });
+  })).then(function(){
+    renderMor();
+    if(autoVinculados.length) toast('✅ '+autoVinculados.length+' contatos vinculados automaticamente!');
+    if(incertos.length || semMatch.length){
+      vcfPendentes = incertos.concat(semMatch.map(c=>({contato:c, morador:null, score:0})));
+      abrirVCFRevisao();
+    } else {
+      fecharM('importar-vcf');
+      toast('Todos os contatos foram vinculados!');
+    }
+  });
+}
+
+function abrirVCFRevisao(){
+  fecharM('importar-vcf');
+  const lista = document.getElementById('vcf-revisao-lista');
+  if(!lista) return;
+  lista.innerHTML = vcfPendentes.map(function(item, i){
+    const morsOpts = mors.filter(m=>!m.wpp).map(m=>'<option value="'+m.id+'">'+m.nome+' (UH '+m.uh+')</option>').join('');
+    const pct = Math.round(item.score*100);
+    return '<div style="background:var(--surface2);border-radius:8px;padding:10px;margin-bottom:8px;border:1px solid var(--border2)">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'+
+      '<div><div style="font-weight:600;font-size:13px">'+item.contato.nome+'</div>'+
+      '<div style="font-family:var(--mono);font-size:10px;color:var(--muted)">'+item.contato.tel+'</div></div>'+
+      (item.morador?'<span style="font-family:var(--mono);font-size:9px;color:'+(pct>=80?'var(--yellow)':'var(--muted)')+'">'+pct+'% similar</span>':'<span style="font-family:var(--mono);font-size:9px;color:var(--muted)">sem sugestão</span>')+
+      '</div>'+
+      '<div style="display:flex;gap:8px;align-items:center">'+
+      '<select class="fi" id="vcf-sel-'+i+'" style="flex:1;font-size:11px"><option value="">— não vincular —</option>'+morsOpts+'</select>'+
+      '</div></div>';
+  }).join('');
+  vcfPendentes.forEach(function(item, i){
+    if(item.morador){
+      const sel = document.getElementById('vcf-sel-'+i);
+      if(sel) sel.value = item.morador.id;
+    }
+  });
+  abrirM('vcf-revisao');
+}
+
+async function confirmarVCFRevisao(){
+  let ok=0;
+  await Promise.all(vcfPendentes.map(async function(item, i){
+    const sel = document.getElementById('vcf-sel-'+i);
+    const morId = sel ? sel.value : '';
+    if(!morId) return;
+    await fetch(API+'/moradores/'+morId, {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({wpp:item.contato.tel})});
+    const m = mors.find(x=>x.id===morId);
+    if(m) m.wpp=item.contato.tel;
+    ok++;
+  }));
+  renderMor();
+  fecharM('vcf-revisao');
+  vcfPendentes=[];
+  toast(ok+' contatos vinculados na revisão!');
+}
 </script>
+
+<div class="mo" id="mo-importar-vcf">
+  <div class="modal">
+    <div class="modal-title">Importar Contatos (.vcf) <button class="mclose" onclick="fecharM('importar-vcf')">✕</button></div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:12px">Exporte seus contatos do celular como <strong>.vcf</strong> e importe aqui. O sistema vinculará automaticamente com os moradores cadastrados.</p>
+    <div style="background:var(--surface2);border-radius:8px;padding:10px;margin-bottom:14px;font-size:11px;color:var(--muted)">
+      <div style="font-weight:600;color:var(--text2);margin-bottom:4px">Como exportar do Android:</div>
+      Contatos → Menu → Importar/Exportar → Exportar para arquivo .vcf
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
+      <input type="file" id="import-vcf" accept=".vcf" style="display:none" onchange="lerVCF(this)">
+      <button class="btn btn-ghost" onclick="document.getElementById('import-vcf').click()">📎 Anexar arquivo .vcf</button>
+      <span id="import-vcf-nome" style="font-family:var(--mono);font-size:10px;color:var(--muted)">Nenhum arquivo selecionado</span>
+    </div>
+    <div style="font-family:var(--mono);font-size:9px;color:var(--muted)">Correspondência automática ≥90% · Revisão manual para os demais</div>
+    <div class="mactions">
+      <button class="btn btn-ghost" onclick="fecharM('importar-vcf')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div class="mo" id="mo-vcf-revisao">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-title">Revisar Vinculação de Contatos <button class="mclose" onclick="fecharM('vcf-revisao')">✕</button></div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:12px">Estes contatos precisam de confirmação manual. Selecione o morador correspondente ou deixe "— não vincular —" para ignorar.</p>
+    <div id="vcf-revisao-lista" style="max-height:380px;overflow-y:auto"></div>
+    <div class="mactions">
+      <button class="btn btn-ghost" onclick="fecharM('vcf-revisao')">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarVCFRevisao()">✓ Confirmar Vinculação</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
